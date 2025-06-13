@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Portal - Order Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800">Supplier Portal</h1>
+                    <p class="text-gray-600 mt-2">Manage your restaurant orders efficiently</p>
+                </div>
+                <div class="flex space-x-3">
+                    <button id="refreshBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        🔄 Refresh
+                    </button>
+                    <select id="formatSelect" class="border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="table">Table View</option>
+                        <option value="json">JSON Format</option>
+                        <option value="csv">Download CSV</option>
+                        <option value="pdf">Generate PDF</option>
+                        <option value="email">Email Format</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="flex items-center">
+                    <div class="text-3xl">📦</div>
+                    <div class="ml-4">
+                        <p class="text-gray-600 text-sm">Total Orders</p>
+                        <p id="totalOrders" class="text-2xl font-bold text-gray-800">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="flex items-center">
+                    <div class="text-3xl">⏳</div>
+                    <div class="ml-4">
+                        <p class="text-gray-600 text-sm">Pending</p>
+                        <p id="pendingOrders" class="text-2xl font-bold text-orange-600">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="flex items-center">
+                    <div class="text-3xl">✅</div>
+                    <div class="ml-4">
+                        <p class="text-gray-600 text-sm">Processed</p>
+                        <p id="processedOrders" class="text-2xl font-bold text-green-600">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="flex items-center">
+                    <div class="text-3xl">💰</div>
+                    <div class="ml-4">
+                        <p class="text-gray-600 text-sm">Total Value</p>
+                        <p id="totalValue" class="text-2xl font-bold text-blue-600">£-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Display -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Recent Orders</h2>
+            
+            <!-- Loading State -->
+            <div id="loadingState" class="text-center py-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+                <p class="text-gray-600 mt-4">Loading orders...</p>
+            </div>
+
+            <!-- Table View -->
+            <div id="tableView" class="hidden overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Restaurant</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-200">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Other Format Views -->
+            <div id="formatView" class="hidden">
+                <pre id="formatContent" class="bg-gray-100 p-4 rounded-lg overflow-x-auto text-sm"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get supplier ID from URL
+        const supplierId = window.location.pathname.split('/')[2];
+        let currentOrders = [];
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOrders();
+            
+            // Event listeners
+            document.getElementById('refreshBtn').addEventListener('click', loadOrders);
+            document.getElementById('formatSelect').addEventListener('change', handleFormatChange);
+        });
+
+        // Load orders from API
+        async function loadOrders() {
+            try {
+                document.getElementById('loadingState').classList.remove('hidden');
+                document.getElementById('tableView').classList.add('hidden');
+                document.getElementById('formatView').classList.add('hidden');
+
+                const response = await fetch(`/supplier/${supplierId}/orders`);
+                const data = await response.json();
+                
+                currentOrders = data.orders || [];
+                updateStats();
+                displayTableView();
+                
+                document.getElementById('loadingState').classList.add('hidden');
+                
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                document.getElementById('loadingState').innerHTML = 
+                    '<p class="text-red-600">Error loading orders. Please try again.</p>';
+            }
+        }
+
+        // Update statistics cards
+        function updateStats() {
+            const total = currentOrders.length;
+            const pending = currentOrders.filter(o => o.status === 'pending').length;
+            const processed = currentOrders.filter(o => o.status === 'processed').length;
+            const totalValue = currentOrders.reduce((sum, o) => sum + (o.order_data.total || 0), 0);
+
+            document.getElementById('totalOrders').textContent = total;
+            document.getElementById('pendingOrders').textContent = pending;
+            document.getElementById('processedOrders').textContent = processed;
+            document.getElementById('totalValue').textContent = `£${totalValue.toFixed(2)}`;
+        }
+
+        // Display orders in table format
+        function displayTableView() {
+            const tbody = document.getElementById('ordersTableBody');
+            tbody.innerHTML = '';
+
+            currentOrders.forEach(order => {
+                const data = order.order_data;
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+
+                const itemsList = data.items.map(item => 
+                    `${item.name} (${item.quantity})`
+                ).join(', ');
+
+                const statusColor = order.status === 'pending' ? 'text-orange-600 bg-orange-100' : 'text-green-600 bg-green-100';
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#${order.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${data.restaurant_id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${new Date(data.order_date).toLocaleDateString()}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title="${itemsList}">${itemsList}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">£${(data.total || 0).toFixed(2)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${statusColor}">${order.status}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="viewOrderDetails(${order.id})" class="text-blue-600 hover:text-blue-900">View</button>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('tableView').classList.remove('hidden');
+        }
+
+        // Handle format changes
+        async function handleFormatChange() {
+            const format = document.getElementById('formatSelect').value;
+            
+            if (format === 'table') {
+                document.getElementById('formatView').classList.add('hidden');
+                document.getElementById('tableView').classList.remove('hidden');
+                return;
+            }
+
+            if (format === 'csv') {
+                // Download CSV
+                window.location.href = `/supplier/${supplierId}/orders?format=csv`;
+                document.getElementById('formatSelect').value = 'table';
+                return;
+            }
+
+            if (format === 'pdf') {
+                generatePDF();
+                document.getElementById('formatSelect').value = 'table';
+                return;
+            }
+
+            // Show formatted content
+            try {
+                const response = await fetch(`/supplier/${supplierId}/orders?format=${format}`);
+                let content;
+
+                if (format === 'json') {
+                    const data = await response.json();
+                    content = JSON.stringify(data, null, 2);
+                } else if (format === 'email') {
+                    const data = await response.json();
+                    content = data.email_body;
+                }
+
+                document.getElementById('formatContent').textContent = content;
+                document.getElementById('tableView').classList.add('hidden');
+                document.getElementById('formatView').classList.remove('hidden');
+
+            } catch (error) {
+                console.error('Error loading format:', error);
+            }
+        }
+
+        // Generate PDF
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(20);
+            doc.text('Order Summary', 20, 20);
+            
+            doc.setFontSize(12);
+            let yPos = 40;
+
+            currentOrders.forEach(order => {
+                const data = order.order_data;
+                
+                doc.text(`Order #${order.id}`, 20, yPos);
+                doc.text(`Restaurant: ${data.restaurant_id}`, 20, yPos + 10);
+                doc.text(`Date: ${new Date(data.order_date).toLocaleDateString()}`, 20, yPos + 20);
+                doc.text(`Total: £${(data.total || 0).toFixed(2)}`, 20, yPos + 30);
+                
+                yPos += 50;
+                
+                if (yPos > 250) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+            });
+
+            doc.save(`orders-${supplierId}-${new Date().toISOString().split('T')[0]}.pdf`);
+        }
+
+        // View order details (placeholder)
+        function viewOrderDetails(orderId) {
+            const order = currentOrders.find(o => o.id === orderId);
+            if (order) {
+                alert(`Order Details:\n\n${JSON.stringify(order.order_data, null, 2)}`);
+            }
+        }
+    </script>
+</body>
+</html>

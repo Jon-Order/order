@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,.05);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,.1);
+        }
+        .icon-large {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .navbar {
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,.1);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-box-seam me-2"></i>
+                Order Management System
+            </a>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="display-4 mb-4">Welcome to Order Management</h1>
+                <p class="lead text-muted">Access all your order management tools from one place</p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Orders Dashboard -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body text-center p-4">
+                        <i class="bi bi-clipboard-data icon-large text-primary"></i>
+                        <h3 class="card-title h4">Orders Dashboard</h3>
+                        <p class="card-text text-muted">View and manage all orders in one place</p>
+                        <a href="/admin" class="btn btn-primary">Access Dashboard</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supplier Portal -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body text-center p-4">
+                        <i class="bi bi-shop icon-large text-success"></i>
+                        <h3 class="card-title h4">Supplier Portal</h3>
+                        <p class="card-text text-muted">Supplier-specific order management interface</p>
+                        <div class="input-group mb-3">
+                            <input type="text" id="supplierId" class="form-control" placeholder="Enter Supplier ID">
+                            <button class="btn btn-success" onclick="goToSupplierPortal()">Go to Portal</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Documentation -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body text-center p-4">
+                        <i class="bi bi-code-square icon-large text-info"></i>
+                        <h3 class="card-title h4">API Endpoints</h3>
+                        <p class="card-text text-muted">View available API endpoints and documentation</p>
+                        <div class="list-group text-start">
+                            <a href="/admin/orders" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                Orders API
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                            <a href="/api/suppliers" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                Suppliers API
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function goToSupplierPortal() {
+            const supplierId = document.getElementById('supplierId').value;
+            if (supplierId) {
+                window.location.href = `/supplier/${supplierId}/portal`;
+            } else {
+                alert('Please enter a Supplier ID');
+            }
+        }
+    </script>
+</body>
+</html> 
