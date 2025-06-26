@@ -4,6 +4,7 @@ import { ItemAnalytics } from '../models/ItemAnalytics.js';
 import { ANALYTICS_CONFIG } from '../../../core/config/data-sources.js';
 import logger from '../../../logger.js';
 import * as db from '../../../db.js';
+import { query } from '../../../db.js';
 
 export class AnalyticsService {
   constructor() {
@@ -124,31 +125,42 @@ export class AnalyticsService {
   }
 
   // Get analytics for specific item
-  async getItemAnalytics(itemId) {
-    // Check cache first
-    const cacheKey = `item_analytics_${itemId}`;
-    if (this.cache.has(cacheKey)) {
-      const cached = this.cache.get(cacheKey);
-      if (Date.now() - cached.timestamp < ANALYTICS_CONFIG.cacheDuration) {
-        return cached.data;
-      }
-    }
+  async getItemAnalytics(itemId, startDate, endDate) {
+    const sql = isProd 
+      ? `SELECT 
+          ol.sku_id as item_id,
+          COUNT(DISTINCT o.id) as order_count,
+          SUM(ol.quantity) as total_quantity,
+          AVG(ol.quantity) as average_quantity,
+          MIN(ol.quantity) as min_quantity,
+          MAX(ol.quantity) as max_quantity,
+          MIN(o.order_date) as first_order_date,
+          MAX(o.order_date) as last_order_date
+        FROM order_lines ol
+        INNER JOIN orders o ON ol.order_id = o.id
+        WHERE ol.sku_id = $1
+          AND o.order_date >= $2
+          AND o.order_date <= $3
+        GROUP BY ol.sku_id`
+      : `SELECT 
+          ol.sku_id as item_id,
+          COUNT(DISTINCT o.id) as order_count,
+          SUM(ol.quantity) as total_quantity,
+          AVG(ol.quantity) as average_quantity,
+          MIN(ol.quantity) as min_quantity,
+          MAX(ol.quantity) as max_quantity,
+          MIN(o.order_date) as first_order_date,
+          MAX(o.order_date) as last_order_date
+        FROM order_lines ol
+        INNER JOIN orders o ON ol.order_id = o.id
+        WHERE ol.sku_id = ?
+          AND o.order_date >= ?
+          AND o.order_date <= ?
+        GROUP BY ol.sku_id`;
 
-    // Get from database or run analysis
-    const allAnalytics = await this.getAllAnalytics();
-    const itemAnalytics = allAnalytics.find(a => a.item_id === itemId);
-
-    if (itemAnalytics) {
-      // Cache the result
-      this.cache.set(cacheKey, {
-        data: itemAnalytics,
-        timestamp: Date.now()
-      });
-
-      return itemAnalytics;
-    }
-
-    return null;
+    const params = [itemId, startDate, endDate];
+    const results = await query(sql, params);
+    return results[0] || null;
   }
 
   // Get trend analysis
@@ -284,6 +296,39 @@ export class AnalyticsService {
       keys: Array.from(this.cache.keys()),
       lastAnalysis: this.lastAnalysis
     };
+  }
+
+  async getTopOrderedItems(limit = 10, startDate, endDate) {
+    const sql = isProd
+      ? `SELECT 
+          ol.sku_id as item_id,
+          ol.product_name as item_name,
+          COUNT(DISTINCT o.id) as order_count,
+          SUM(ol.quantity) as total_quantity,
+          AVG(ol.quantity) as average_quantity
+        FROM order_lines ol
+        INNER JOIN orders o ON ol.order_id = o.id
+        WHERE o.order_date >= $1
+          AND o.order_date <= $2
+        GROUP BY ol.sku_id, ol.product_name
+        ORDER BY total_quantity DESC
+        LIMIT $3`
+      : `SELECT 
+          ol.sku_id as item_id,
+          ol.product_name as item_name,
+          COUNT(DISTINCT o.id) as order_count,
+          SUM(ol.quantity) as total_quantity,
+          AVG(ol.quantity) as average_quantity
+        FROM order_lines ol
+        INNER JOIN orders o ON ol.order_id = o.id
+        WHERE o.order_date >= ?
+          AND o.order_date <= ?
+        GROUP BY ol.sku_id, ol.product_name
+        ORDER BY total_quantity DESC
+        LIMIT ?`;
+
+    const params = [startDate, endDate, limit];
+    return await query(sql, params);
   }
 }
 
