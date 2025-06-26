@@ -287,5 +287,5 @@ export class AnalyticsService {
   }
 }
 
-// Export singleton instance
+// Create and export a singleton instance
 export const analyticsService = new AnalyticsService(); 
