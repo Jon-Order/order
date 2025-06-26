@@ -167,7 +167,7 @@ jobs:
                 echo "✅ Deploy completed successfully"
                 exit 0
                 ;;
-              "failed"|"cancelled"|"deactivated")
+              "failed"|"cancelled"|"deactivated"|"update_failed")
                 echo "❌ Deploy failed or was cancelled"
                 echo "Full response: $RESPONSE"
                 exit 1

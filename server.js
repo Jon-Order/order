@@ -7,7 +7,7 @@ import * as db from './db.js';
 import logger from './logger.js';
 import { processStagedOrders } from './process-staged-orders.js';
 import { metricsMiddleware, metrics } from './shared/monitoring/index.js';
-import { MigrationsManager } from './migrations/migrations-manager.js';
+import { MigrationsManager } from './db/migrations-manager.js';
 
 // Import analytics routes
 import analyticsRoutes from './modules/analytics/routes/analytics-routes.js';
@@ -23,39 +23,32 @@ let isInitialized = false;
 let isMigrating = false;
 let lastMigrationError = null;
 
-// Function to run migrations
-async function runMigrations() {
+// Initialize database and run migrations
+async function initializeApp() {
     try {
+        logger.info('Initializing application...');
+        
+        // Initialize database first
+        logger.info('Initializing database connection...');
+        await db.initializeDatabase();
+        logger.info('Database connection initialized successfully');
+        
+        // Run migrations
+        logger.info('Running database migrations...');
         isMigrating = true;
-        const migrationsManager = new MigrationsManager(db, process.env.NODE_ENV === 'production');
-        await migrationsManager.runMigrations();
+        await db.runMigrations();
         isMigrating = false;
-        lastMigrationError = null;
+        logger.info('Database migrations completed successfully');
+        
         isInitialized = true;
+        logger.info('Application initialized successfully');
     } catch (error) {
         lastMigrationError = error;
         isMigrating = false;
-        logger.error('Migration failed:', error);
-        throw error;
-    }
-}
-
-// Initialize the application
-async function initialize() {
-    try {
-        await runMigrations();
-        logger.info('Application initialized successfully');
-    } catch (error) {
         logger.error('Failed to initialize application:', error);
         throw error;
     }
 }
-
-// Call initialize on startup
-initialize().catch(error => {
-    logger.error('Failed to initialize application:', error);
-    process.exit(1);
-});
 
 // Middleware
 app.use(cors());
@@ -110,6 +103,7 @@ app.get('/api/health', async (req, res) => {
     try {
         // If we're still running migrations, return 503 Service Unavailable
         if (isMigrating) {
+            logger.info('Health check: migrations in progress');
             return res.status(503).json({
                 status: 'initializing',
                 message: 'Running database migrations'
@@ -118,6 +112,7 @@ app.get('/api/health', async (req, res) => {
 
         // If migrations failed, return 503 Service Unavailable
         if (lastMigrationError) {
+            logger.error('Health check: previous migration failed:', lastMigrationError);
             return res.status(503).json({
                 status: 'unhealthy',
                 message: 'Migration failed',
@@ -127,6 +122,7 @@ app.get('/api/health', async (req, res) => {
 
         // If not initialized, return 503 Service Unavailable
         if (!isInitialized) {
+            logger.info('Health check: application not initialized yet');
             return res.status(503).json({
                 status: 'initializing',
                 message: 'Application is starting'
@@ -134,7 +130,9 @@ app.get('/api/health', async (req, res) => {
         }
 
         // Check database connection
+        logger.info('Health check: testing database connection...');
         await db.query('SELECT 1');
+        logger.info('Health check: database connection successful');
 
         // All checks passed
         res.status(200).json({
@@ -328,9 +326,22 @@ app.get('/api/orders/:orderId/lines', async (req, res) => {
   }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Restaurant-Supplier API running on port ${PORT}`);
-  console.log(`📊 Supplier portals available at: http://localhost:${PORT}/supplier/{supplier-id}/portal`);
-  console.log(`📈 Analytics API available at: http://localhost:${PORT}/api/analytics`);
+// Start the server
+const server = app.listen(PORT, async () => {
+    logger.info(`Server is running on port ${PORT}`);
+    try {
+        await initializeApp();
+        logger.info('Server is ready to accept requests');
+    } catch (error) {
+        logger.error('Server initialization failed:', error);
+    }
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+    logger.info('SIGTERM received. Starting graceful shutdown...');
+    server.close(() => {
+        logger.info('Server closed. Process will exit.');
+        process.exit(0);
+    });
 });
