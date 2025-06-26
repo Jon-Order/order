@@ -650,26 +650,36 @@ async function deleteWebhookEvent(id) {
     return run(sql, [id]);
 }
 
-// Export database functions
+// Export all functions
 export {
+    initializeDatabase,
     query,
     get,
     run,
     getDb,
-    initializeDatabase,
+    setupDatabase,
+    withTransaction,
+    createOrderLine,
     createOrder,
     getOrderById,
+    getSupplierOrders,
+    getAllOrders,
+    backupDatabase,
+    storeAnalyticsResults,
+    getLatestAnalytics,
+    listTables,
+    countRows,
+    getRecentRows,
+    insertWebhookEvent,
     getUnprocessedWebhookEvents,
     markWebhookEventProcessed,
-    createOrderLine,
-    getAllOrders,
+    getAllLocations,
+    getAllSuppliers,
+    getAllUsers,
+    getAllLocationsWithBrand,
     getOrderLinesByOrderId,
     createWebhookEvent,
     getWebhookEventById,
     updateWebhookEvent,
-    deleteWebhookEvent,
-    getAllLocations,
-    getAllSuppliers,
-    getAllUsers,
-    getAllLocationsWithBrand
+    deleteWebhookEvent
 }; 
