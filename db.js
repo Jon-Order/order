@@ -179,38 +179,59 @@ async function setupDatabase() {
         }
     } : db;
     
-    // Orders table
-    await dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS orders (
-            id TEXT PRIMARY KEY,
-            local_order_id TEXT,
-            order_date TEXT,
-            status TEXT,
-            supplier_id TEXT,
-            location_id TEXT,
-            created_by TEXT,
-            trial_rating TEXT,
-            created_at TEXT,
-            updated_at TEXT
-        )
-    `);
+    if (isProd) {
+        // Run PostgreSQL migrations
+        const migrationFiles = ['002-sqlite-to-postgres.sql', '003-fix-postgres-autoincrement.sql'];
+        for (const migrationFile of migrationFiles) {
+            const migrationPath = path.join(__dirname, 'migrations', migrationFile);
+            try {
+                const migration = fs.readFileSync(migrationPath, 'utf8');
+                const client = await pgPool.connect();
+                try {
+                    await client.query(migration);
+                    logger.info(`Successfully ran migration: ${migrationFile}`);
+                } finally {
+                    client.release();
+                }
+            } catch (err) {
+                logger.error(`Error running migration ${migrationFile}:`, err);
+                // Don't throw error, continue with other migrations
+            }
+        }
+    } else {
+        // SQLite setup
+        await dbInstance.run(`
+            CREATE TABLE IF NOT EXISTS orders (
+                id TEXT PRIMARY KEY,
+                local_order_id TEXT,
+                order_date TEXT,
+                status TEXT,
+                supplier_id TEXT,
+                location_id TEXT,
+                created_by TEXT,
+                trial_rating TEXT,
+                created_at TEXT,
+                updated_at TEXT
+            )
+        `);
 
-    // Analytics results table
-    await dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS analytics_results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            item_id TEXT NOT NULL,
-            item_name TEXT,
-            supplier_id TEXT,
-            analysis_date TEXT NOT NULL,
-            source TEXT,
-            analysis_type TEXT,
-            metrics TEXT,
-            breakdowns TEXT,
-            metadata TEXT,
-            UNIQUE(item_id, analysis_date)
-        )
-    `);
+        // Analytics results table for SQLite
+        await dbInstance.run(`
+            CREATE TABLE IF NOT EXISTS analytics_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_id TEXT NOT NULL,
+                total_quantity INTEGER NOT NULL,
+                average_quantity REAL NOT NULL,
+                order_count INTEGER NOT NULL,
+                first_order_date TEXT,
+                last_order_date TEXT,
+                min_quantity INTEGER,
+                max_quantity INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+    }
 
     // Order lines table
     await dbInstance.run(`
