@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import * as db from './db.js';
 import logger from './logger.js';
 import { processStagedOrders } from './process-staged-orders.js';
+import { metricsMiddleware, metrics } from './shared/monitoring/index.js';
 
 // Import analytics routes
 import analyticsRoutes from './modules/analytics/routes/analytics-routes.js';
@@ -23,6 +24,7 @@ await db.initializeDatabase();
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+app.use(metricsMiddleware);
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -40,14 +42,84 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  const metrics = db.monitoring.getHealthMetrics();
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    metrics
-  });
+// Monitoring endpoint (protected by basic auth)
+app.get('/monitoring', (req, res) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !process.env.MONITORING_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (token !== process.env.MONITORING_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const monitoringData = {
+    ...metrics.getMetrics(),
+    processInfo: {
+      nodeVersion: process.version,
+      platform: process.platform,
+      arch: process.arch,
+      pid: process.pid
+    }
+  };
+
+  res.json(monitoringData);
+});
+
+// Enhanced health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    // Check database connection
+    await db.query('SELECT 1');
+    
+    // Check memory usage
+    const memoryUsage = process.memoryUsage();
+    
+    // Check system uptime
+    const uptime = process.uptime();
+    
+    // Get active connections (if available)
+    let activeConnections = 0;
+    if (db.getActiveConnections) {
+      activeConnections = await db.getActiveConnections();
+    }
+
+    const healthStatus = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: uptime,
+      memory: {
+        heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + 'MB',
+        heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + 'MB',
+        rss: Math.round(memoryUsage.rss / 1024 / 1024) + 'MB'
+      },
+      database: {
+        connected: true,
+        activeConnections: activeConnections
+      },
+      environment: process.env.NODE_ENV || 'development'
+    };
+
+    res.json(healthStatus);
+  } catch (error) {
+    logger.error('Health check failed', {
+      error: error.message,
+      stack: error.stack
+    });
+
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
+});
+
+// Simple health check for load balancers
+app.get('/ping', (req, res) => {
+  res.status(200).send('pong');
 });
 
 // Health check endpoint for Render
@@ -72,12 +144,9 @@ app.post('/webhook/create-order', async (req, res) => {
     // Store the raw webhook event in the staging table
     const eventId = await db.insertWebhookEvent(data);
 
-    // Automatically process staged orders after receiving webhook
-    await processStagedOrders();
-
     res.json({
       success: true,
-      message: 'Order webhook event received, staged, and processed',
+      message: 'Order webhook event received and staged',
       event_id: eventId
     });
 
