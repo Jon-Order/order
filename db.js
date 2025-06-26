@@ -508,7 +508,7 @@ const getRecentRows = (table) => {
 // Insert a webhook event into the staging table
 async function insertWebhookEvent(payload) {
     const sql = `
-        INSERT INTO webhook_events (payload)
+        INSERT INTO create_order_webhook_events (payload)
         VALUES (?)
         RETURNING id
     `;
@@ -519,7 +519,7 @@ async function insertWebhookEvent(payload) {
 // Get all unprocessed webhook events
 async function getUnprocessedWebhookEvents() {
     const sql = `
-        SELECT * FROM webhook_events
+        SELECT * FROM create_order_webhook_events
         WHERE processed = FALSE
         ORDER BY received_at ASC
         LIMIT 100
@@ -530,7 +530,7 @@ async function getUnprocessedWebhookEvents() {
 // Mark a webhook event as processed
 async function markWebhookEventProcessed(eventId, error = null) {
     const sql = `
-        UPDATE webhook_events
+        UPDATE create_order_webhook_events
         SET processed = TRUE,
             processed_at = CURRENT_TIMESTAMP,
             error = ?
@@ -628,20 +628,20 @@ async function getOrderLinesByOrderId(orderId) {
 // Webhook functions
 async function createWebhookEvent(event) {
     const sql = `
-        INSERT INTO webhook_events (id, event_type, payload, processed)
+        INSERT INTO create_order_webhook_events (id, event_type, payload, processed)
         VALUES (?, ?, ?, ?)
     `;
     return run(sql, [event.id, event.event_type, JSON.stringify(event.payload), false]);
 }
 
 async function getWebhookEventById(id) {
-    const sql = 'SELECT * FROM webhook_events WHERE id = ?';
+    const sql = 'SELECT * FROM create_order_webhook_events WHERE id = ?';
     return get(sql, [id]);
 }
 
 async function updateWebhookEvent(id, updates) {
     const sql = `
-        UPDATE webhook_events
+        UPDATE create_order_webhook_events
         SET processed = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
     `;
@@ -649,7 +649,7 @@ async function updateWebhookEvent(id, updates) {
 }
 
 async function deleteWebhookEvent(id) {
-    const sql = 'DELETE FROM webhook_events WHERE id = ?';
+    const sql = 'DELETE FROM create_order_webhook_events WHERE id = ?';
     return run(sql, [id]);
 }
 
