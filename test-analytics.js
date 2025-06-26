@@ -82,6 +82,15 @@ class MockGlideAdapter extends GlideAdapter {
   }
 }
 
+// Override the createAdapter method in dataSourceFactory
+const originalCreateAdapter = dataSourceFactory.createAdapter;
+dataSourceFactory.createAdapter = async function(type) {
+  if (type === 'glide') {
+    return new MockGlideAdapter();
+  }
+  return originalCreateAdapter.call(this, type);
+};
+
 async function testAnalytics() {
   console.log('🧪 Testing Analytics Module...\n');
 
@@ -124,16 +133,20 @@ async function testAnalytics() {
     console.log(`   Cache keys: ${cacheStats.keys.length}\n`);
 
     console.log('🎉 All tests passed! Analytics module is working correctly.');
-
+    process.exit(0);
   } catch (error) {
     console.error('❌ Test failed:', error.message);
     console.error(error.stack);
+    process.exit(1);
   }
 }
 
 // Run tests if this file is executed directly
 if (process.argv[1] === new URL(import.meta.url).pathname) {
-  testAnalytics();
+  testAnalytics().catch(error => {
+    console.error('Unhandled error:', error);
+    process.exit(1);
+  });
 }
 
 export { testAnalytics }; 
