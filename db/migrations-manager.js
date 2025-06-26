@@ -16,7 +16,7 @@ class MigrationsManager {
 
     // Get checksum of a file's contents
     calculateChecksum(content) {
-        return crypto.createHash('md4').update(content).digest('hex');
+        return crypto.createHash('sha256').update(content).digest('hex');
     }
 
     // Get all migration files
