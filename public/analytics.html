@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Analytics Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/analytics.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <img src="/new-logo.png" alt="Logo">
+                <h1>Order Analytics</h1>
+            </div>
+            <div class="actions">
+                <button id="run-analysis-btn" class="btn primary-btn"><i class="fas fa-sync-alt"></i> Run New Analysis</button>
+            </div>
+        </header>
+
+        <main>
+            <div id="summary-cards" class="summary-cards-grid">
+                <!-- Summary cards will be injected by JS -->
+            </div>
+
+            <div class="table-container card">
+                <div class="table-header">
+                    <h2>Item Analysis Details</h2>
+                    <div class="table-controls">
+                        <input type="text" id="search-input" placeholder="Search items...">
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="col-icon"></th>
+                                <th class="col-item sortable" data-sort="metadata.item_name">Item Name</th>
+                                <th class="col-supplier sortable" data-sort="metadata.supplier_id">Supplier ID</th>
+                                <th class="col-orders sortable" data-sort="metrics.total_orders">Total Orders</th>
+                                <th class="col-avg sortable" data-sort="metrics.avg_quantity">Avg Qty</th>
+                                <th class="col-min-max sortable" data-sort="metrics.max_quantity">Min / Max Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Main table rows will be injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-footer">
+                    <div id="pagination-controls">
+                        <button id="prev-page" class="btn">Previous</button>
+                        <span id="page-info"></span>
+                        <button id="next-page" class="btn">Next</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>ORDER-Supplier-API Analytics Platform</p>
+        </footer>
+    </div>
+    <script src="/js/analytics.js"></script>
+</body>
+</html> 

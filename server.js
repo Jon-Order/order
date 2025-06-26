@@ -1,15 +1,20 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import db from './db.js';
 import logger from './logger.js';
+import { processStagedOrders } from './process-staged-orders.js';
+
+// Import analytics routes
+import analyticsRoutes from './modules/analytics/routes/analytics-routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
@@ -42,61 +47,35 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Health check endpoint for Render
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'healthy' });
+});
+
+// Analytics page
+app.get('/analytics', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'analytics.html'));
+});
+
+// Analytics routes
+app.use('/api/analytics', analyticsRoutes);
+
 // Glide Webhook Endpoint for Creating Orders
 app.post('/webhook/create-order', async (req, res) => {
   try {
-    const {
-      order_id,
-      supplier_id,
-      supplier_mask,
-      location_mask,
-      user_id,
-      supplier_name,
-      location_name
-    } = req.body;
+    const data = req.body.body || req.body;
+    logger.info('Received webhook request', { data });
 
-    logger.info('Received webhook request', { data: req.body });
+    // Store the raw webhook event in the staging table
+    const eventId = await db.insertWebhookEvent(data);
 
-    // Validate required fields
-    if (!order_id || !supplier_id) {
-      logger.error('Missing required fields in webhook payload', { received: req.body });
-      return res.status(400).json({
-        error: 'Missing required fields',
-        required: ['order_id', 'supplier_id'],
-        received: req.body
-      });
-    }
+    // Automatically process staged orders after receiving webhook
+    await processStagedOrders();
 
-    // Create order object with Glide data
-    const order = {
-      id: order_id,
-      supplier_id: supplier_id,
-      supplier_name: supplier_name,
-      location_name: location_name,
-      status: 'pending',
-      created_by: user_id,
-      timestamp: new Date().toISOString(),
-      metadata: {
-        supplier_mask,
-        location_mask,
-        user_id
-      }
-    };
-
-    // Store the order in database
-    const savedOrder = await db.createOrder(order);
-    logger.info('Order created from Glide webhook', { 
-      order_id: savedOrder.id, 
-      supplier_id,
-      supplier_name 
-    });
-
-    // Return success response
     res.json({
       success: true,
-      message: 'Order created successfully via Glide webhook',
-      order_id: savedOrder.id,
-      data: savedOrder
+      message: 'Order webhook event received, staged, and processed',
+      event_id: eventId
     });
 
   } catch (error) {
@@ -128,8 +107,6 @@ app.get('/api/orders/:orderId/status', async (req, res) => {
       success: true,
       order_id: orderId,
       status: order.status,
-      supplier_name: order.supplier_name,
-      location_name: order.location_name,
       created_at: order.timestamp
     });
 
@@ -194,8 +171,65 @@ app.get('/admin/orders', async (req, res) => {
   }
 });
 
+// API endpoint to get all locations (id and name)
+app.get('/api/locations', async (req, res) => {
+  try {
+    const locations = await db.getAllLocations();
+    res.json({ success: true, data: locations });
+  } catch (error) {
+    logger.error('Error getting locations', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Failed to get locations', message: error.message });
+  }
+});
+
+// API endpoint to get all suppliers (id and name)
+app.get('/api/suppliers', async (req, res) => {
+  try {
+    const suppliers = await db.getAllSuppliers();
+    res.json({ success: true, data: suppliers });
+  } catch (error) {
+    logger.error('Error getting suppliers', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Failed to get suppliers', message: error.message });
+  }
+});
+
+// API endpoint to get all users (id and name)
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await db.getAllUsers();
+    res.json({ success: true, data: users });
+  } catch (error) {
+    logger.error('Error getting users', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Failed to get users', message: error.message });
+  }
+});
+
+// API endpoint to get all locations with brand name
+app.get('/api/locations-with-brand', async (req, res) => {
+  try {
+    const locations = await db.getAllLocationsWithBrand();
+    res.json({ success: true, data: locations });
+  } catch (error) {
+    logger.error('Error getting locations with brand', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Failed to get locations with brand', message: error.message });
+  }
+});
+
+// API endpoint to get order lines for a given order
+app.get('/api/orders/:orderId/lines', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const lines = await db.getOrderLinesByOrderId(orderId);
+    res.json({ success: true, data: lines });
+  } catch (error) {
+    logger.error('Error getting order lines', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Failed to get order lines', message: error.message });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Restaurant-Supplier API running on port ${PORT}`);
   console.log(`📊 Supplier portals available at: http://localhost:${PORT}/supplier/{supplier-id}/portal`);
+  console.log(`📈 Analytics API available at: http://localhost:${PORT}/api/analytics`);
 });

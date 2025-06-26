@@ -97,6 +97,42 @@
                 </div>
             </div>
         </div>
+
+        <!-- Add Database Browser link/button -->
+        <div style="margin: 2em 0; text-align: center;">
+            <a href="/db-browser.html" target="_blank" style="display:inline-block;padding:12px 28px;background:#007bff;color:#fff;text-decoration:none;font-size:1.2em;border-radius:6px;">Open Database Browser</a>
+        </div>
+
+        <!-- API Endpoints Section -->
+        <div style="margin: 2em 0; text-align: center;">
+            <h2>API Endpoints</h2>
+            <table style="margin: 0 auto; border-collapse: collapse;">
+                <tr><th style="padding:8px 16px;">Endpoint</th><th style="padding:8px 16px;">Description</th><th></th></tr>
+                <tr>
+                    <td style="padding:8px 16px;">POST /webhook/create-order</td>
+                    <td style="padding:8px 16px;">Create a new order from Glide (webhook)</td>
+                    <td style="padding:8px 16px;"><button onclick="showApiDoc('create-order')">Docs</button></td>
+                </tr>
+                <tr>
+                    <td style="padding:8px 16px;">GET /api/orders/:orderId/status</td>
+                    <td style="padding:8px 16px;">Get order status by ID</td>
+                    <td style="padding:8px 16px;"><button onclick="showApiDoc('order-status')">Docs</button></td>
+                </tr>
+                <tr>
+                    <td style="padding:8px 16px;">GET /supplier/:supplierId/orders</td>
+                    <td style="padding:8px 16px;">Get all orders for a supplier</td>
+                    <td style="padding:8px 16px;"><button onclick="showApiDoc('supplier-orders')">Docs</button></td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- API Docs Modal/Section -->
+        <div id="api-doc-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+            <div style="background:#fff; padding:2em; border-radius:8px; max-width:600px; margin:5vh auto; position:relative;">
+                <button onclick="closeApiDoc()" style="position:absolute; top:8px; right:8px; font-size:1.2em;">&times;</button>
+                <div id="api-doc-content"></div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -107,6 +143,73 @@
             } else {
                 alert('Please enter a Supplier ID');
             }
+        }
+
+        function showApiDoc(key) {
+            const docs = {
+                'create-order': `
+                    <h3>POST /webhook/create-order</h3>
+                    <p><b>Description:</b> Receives new order data from Glide, creates an order, and imports order lines from Glide.</p>
+                    <b>Request Body (JSON):</b>
+                    <pre>{
+                        "order_id": "string",        // Required: Unique order ID from Glide
+                        "supplier_id": "string",     // Required: Supplier ID
+                        "location_id": "string",     // Optional: Location ID
+                        "user_id": "string",         // Optional: User ID (who placed the order)
+                        "status": "string"           // Optional: Order status (default: 'pending')
+                    }</pre>
+                    <b>Response (JSON):</b>
+                    <pre>{
+                        "success": true,
+                        "message": "Order created successfully via Glide webhook",
+                        "order_id": "...",
+                        "order_lines_imported": 5
+                    }</pre>
+                    <b>Example curl:</b>
+                    <pre>curl -X POST http://localhost:3000/webhook/create-order \
+                        -H "Content-Type: application/json" \
+                        -d '{
+                            "order_id": "ORDER123",
+                            "supplier_id": "SUP123",
+                            "location_id": "LOC123",
+                            "user_id": "USER123",
+                            "status": "pending"
+                        }'</pre>
+                `,
+                'order-status': `
+                    <h3>GET /api/orders/:orderId/status</h3>
+                    <p><b>Description:</b> Get the status and details of an order by its ID.</p>
+                    <b>Response (JSON):</b>
+                    <pre>{
+                        "success": true,
+                        "order_id": "ORDER123",
+                        "status": "pending",
+                        "supplier_name": "Supplier Name",
+                        "location_name": "Location Name",
+                        "created_at": "2025-06-22T08:57:31.754Z"
+                    }</pre>
+                    <b>Example:</b>
+                    <pre>curl http://localhost:3000/api/orders/ORDER123/status</pre>
+                `,
+                'supplier-orders': `
+                    <h3>GET /supplier/:supplierId/orders</h3>
+                    <p><b>Description:</b> Get all orders for a given supplier.</p>
+                    <b>Response (JSON):</b>
+                    <pre>{
+                        "success": true,
+                        "supplier_id": "SUP123",
+                        "orders": [ ... ]
+                    }</pre>
+                    <b>Example:</b>
+                    <pre>curl http://localhost:3000/supplier/SUP123/orders</pre>
+                `
+            };
+            document.getElementById('api-doc-content').innerHTML = docs[key] || 'No documentation available.';
+            document.getElementById('api-doc-modal').style.display = 'flex';
+        }
+
+        function closeApiDoc() {
+            document.getElementById('api-doc-modal').style.display = 'none';
         }
     </script>
 </body>

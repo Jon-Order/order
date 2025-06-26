@@ -1,0 +1,283 @@
+info: Orders table schema is up to date {"timestamp":"2025-06-25T17:44:16.152Z"}
+info: Analytics results table schema is up to date {"timestamp":"2025-06-25T17:44:16.153Z"}
+Connected to SQLite database
+DEBUG: First raw row from Glide: {
+  '$rowIndex': 'W',
+  '$rowID': 'a-Lsq5-HhQhKVZZ.RIXe3qg',
+  Name: 'vbxUgF0CR8m0JCIpbu-7pg',
+  '9TCym': 'wuqj75edR0670x.mQmMz0A',
+  DkAjz: 'qocT4gYNazmW83Jjv8L2',
+  PpduP: 'N/A',
+  foEbv: 'Katchicks Foods',
+  Xoe7X: 'Sausage Meat',
+  vszQ2: '1kg',
+  wlY2L: 5.8,
+  xdc8z: 'DDD Sausage Meat',
+  NmhEQ: 'QG-A.oJrSF2AmUnmgpDNUg',
+  xDa3g: 0,
+  '1QgnP': 2,
+  '1OGzY': '2025-09-06T08:04:01.000Z',
+  hOyM7: 'sZRVo5.eS5acf7GEVw6eCw'
+}
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Keys of first raw row from Glide: [
+  '$rowIndex', '$rowID',
+  'Name',      '9TCym',
+  'DkAjz',     'PpduP',
+  'foEbv',     'Xoe7X',
+  'vszQ2',     'wlY2L',
+  'xdc8z',     'NmhEQ',
+  'xDa3g',     '1QgnP',
+  '1OGzY',     'hOyM7'
+]
+Database operation failed {
+  error: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+    errno: 19,
+    code: 'SQLITE_CONSTRAINT'
+  },
+  totalFailures: 1
+}
+Failed to process event 1: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+  errno: 19,
+  code: 'SQLITE_CONSTRAINT'
+}
+DEBUG: First raw row from Glide: {
+  '$rowIndex': 'W',
+  '$rowID': 'a-Lsq5-HhQhKVZZ.RIXe3qg',
+  Name: 'vbxUgF0CR8m0JCIpbu-7pg',
+  '9TCym': 'wuqj75edR0670x.mQmMz0A',
+  DkAjz: 'qocT4gYNazmW83Jjv8L2',
+  PpduP: 'N/A',
+  foEbv: 'Katchicks Foods',
+  Xoe7X: 'Sausage Meat',
+  vszQ2: '1kg',
+  wlY2L: 5.8,
+  xdc8z: 'DDD Sausage Meat',
+  NmhEQ: 'QG-A.oJrSF2AmUnmgpDNUg',
+  xDa3g: 0,
+  '1QgnP': 2,
+  '1OGzY': '2025-09-06T08:04:01.000Z',
+  hOyM7: 'sZRVo5.eS5acf7GEVw6eCw'
+}
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Keys of first raw row from Glide: [
+  '$rowIndex', '$rowID',
+  'Name',      '9TCym',
+  'DkAjz',     'PpduP',
+  'foEbv',     'Xoe7X',
+  'vszQ2',     'wlY2L',
+  'xdc8z',     'NmhEQ',
+  'xDa3g',     '1QgnP',
+  '1OGzY',     'hOyM7'
+]
+Database operation failed {
+  error: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+    errno: 19,
+    code: 'SQLITE_CONSTRAINT'
+  },
+  totalFailures: 2
+}
+Failed to process event 2: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+  errno: 19,
+  code: 'SQLITE_CONSTRAINT'
+}
+DEBUG: First raw row from Glide: {
+  '$rowIndex': 'W',
+  '$rowID': 'a-Lsq5-HhQhKVZZ.RIXe3qg',
+  Name: 'vbxUgF0CR8m0JCIpbu-7pg',
+  '9TCym': 'wuqj75edR0670x.mQmMz0A',
+  DkAjz: 'qocT4gYNazmW83Jjv8L2',
+  PpduP: 'N/A',
+  foEbv: 'Katchicks Foods',
+  Xoe7X: 'Sausage Meat',
+  vszQ2: '1kg',
+  wlY2L: 5.8,
+  xdc8z: 'DDD Sausage Meat',
+  NmhEQ: 'QG-A.oJrSF2AmUnmgpDNUg',
+  xDa3g: 0,
+  '1QgnP': 2,
+  '1OGzY': '2025-09-06T08:04:01.000Z',
+  hOyM7: 'sZRVo5.eS5acf7GEVw6eCw'
+}
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Keys of first raw row from Glide: [
+  '$rowIndex', '$rowID',
+  'Name',      '9TCym',
+  'DkAjz',     'PpduP',
+  'foEbv',     'Xoe7X',
+  'vszQ2',     'wlY2L',
+  'xdc8z',     'NmhEQ',
+  'xDa3g',     '1QgnP',
+  '1OGzY',     'hOyM7'
+]
+Database operation failed {
+  error: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+    errno: 19,
+    code: 'SQLITE_CONSTRAINT'
+  },
+  totalFailures: 3
+}
+Failed to process event 3: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+  errno: 19,
+  code: 'SQLITE_CONSTRAINT'
+}
+DEBUG: First raw row from Glide: {
+  '$rowIndex': 'W',
+  '$rowID': 'a-Lsq5-HhQhKVZZ.RIXe3qg',
+  Name: 'vbxUgF0CR8m0JCIpbu-7pg',
+  '9TCym': 'wuqj75edR0670x.mQmMz0A',
+  DkAjz: 'qocT4gYNazmW83Jjv8L2',
+  PpduP: 'N/A',
+  foEbv: 'Katchicks Foods',
+  Xoe7X: 'Sausage Meat',
+  vszQ2: '1kg',
+  wlY2L: 5.8,
+  xdc8z: 'DDD Sausage Meat',
+  NmhEQ: 'QG-A.oJrSF2AmUnmgpDNUg',
+  xDa3g: 0,
+  '1QgnP': 2,
+  '1OGzY': '2025-09-06T08:04:01.000Z',
+  hOyM7: 'sZRVo5.eS5acf7GEVw6eCw'
+}
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Keys of first raw row from Glide: [
+  '$rowIndex', '$rowID',
+  'Name',      '9TCym',
+  'DkAjz',     'PpduP',
+  'foEbv',     'Xoe7X',
+  'vszQ2',     'wlY2L',
+  'xdc8z',     'NmhEQ',
+  'xDa3g',     '1QgnP',
+  '1OGzY',     'hOyM7'
+]
+Database operation failed {
+  error: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+    errno: 19,
+    code: 'SQLITE_CONSTRAINT'
+  },
+  totalFailures: 4
+}
+Failed to process event 4: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+  errno: 19,
+  code: 'SQLITE_CONSTRAINT'
+}
+DEBUG: First raw row from Glide: {
+  '$rowIndex': 'W',
+  '$rowID': 'a-Lsq5-HhQhKVZZ.RIXe3qg',
+  Name: 'vbxUgF0CR8m0JCIpbu-7pg',
+  '9TCym': 'wuqj75edR0670x.mQmMz0A',
+  DkAjz: 'qocT4gYNazmW83Jjv8L2',
+  PpduP: 'N/A',
+  foEbv: 'Katchicks Foods',
+  Xoe7X: 'Sausage Meat',
+  vszQ2: '1kg',
+  wlY2L: 5.8,
+  xdc8z: 'DDD Sausage Meat',
+  NmhEQ: 'QG-A.oJrSF2AmUnmgpDNUg',
+  xDa3g: 0,
+  '1QgnP': 2,
+  '1OGzY': '2025-09-06T08:04:01.000Z',
+  hOyM7: 'sZRVo5.eS5acf7GEVw6eCw'
+}
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Keys of first raw row from Glide: [
+  '$rowIndex', '$rowID',
+  'Name',      '9TCym',
+  'DkAjz',     'PpduP',
+  'foEbv',     'Xoe7X',
+  'vszQ2',     'wlY2L',
+  'xdc8z',     'NmhEQ',
+  'xDa3g',     '1QgnP',
+  '1OGzY',     'hOyM7'
+]
+Database operation failed {
+  error: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+    errno: 19,
+    code: 'SQLITE_CONSTRAINT'
+  },
+  totalFailures: 5
+}
+Failed to process event 5: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+  errno: 19,
+  code: 'SQLITE_CONSTRAINT'
+}
+DEBUG: First raw row from Glide: {
+  '$rowIndex': 'W',
+  '$rowID': 'a-Lsq5-HhQhKVZZ.RIXe3qg',
+  Name: 'vbxUgF0CR8m0JCIpbu-7pg',
+  '9TCym': 'wuqj75edR0670x.mQmMz0A',
+  DkAjz: 'qocT4gYNazmW83Jjv8L2',
+  PpduP: 'N/A',
+  foEbv: 'Katchicks Foods',
+  Xoe7X: 'Sausage Meat',
+  vszQ2: '1kg',
+  wlY2L: 5.8,
+  xdc8z: 'DDD Sausage Meat',
+  NmhEQ: 'QG-A.oJrSF2AmUnmgpDNUg',
+  xDa3g: 0,
+  '1QgnP': 2,
+  '1OGzY': '2025-09-06T08:04:01.000Z',
+  hOyM7: 'sZRVo5.eS5acf7GEVw6eCw'
+}
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Keys of first raw row from Glide: [
+  '$rowIndex', '$rowID',
+  'Name',      '9TCym',
+  'DkAjz',     'PpduP',
+  'foEbv',     'Xoe7X',
+  'vszQ2',     'wlY2L',
+  'xdc8z',     'NmhEQ',
+  'xDa3g',     '1QgnP',
+  '1OGzY',     'hOyM7'
+]
+Database operation failed {
+  error: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+    errno: 19,
+    code: 'SQLITE_CONSTRAINT'
+  },
+  totalFailures: 6
+}
+Failed to process event 6: [Error: SQLITE_CONSTRAINT: UNIQUE constraint failed: orders.id] {
+  errno: 19,
+  code: 'SQLITE_CONSTRAINT'
+}
+DEBUG: First raw row from Glide: {
+  '$rowIndex': 'W',
+  '$rowID': 'a-Lsq5-HhQhKVZZ.RIXe3qg',
+  Name: 'vbxUgF0CR8m0JCIpbu-7pg',
+  '9TCym': 'wuqj75edR0670x.mQmMz0A',
+  DkAjz: 'qocT4gYNazmW83Jjv8L2',
+  PpduP: 'N/A',
+  foEbv: 'Katchicks Foods',
+  Xoe7X: 'Sausage Meat',
+  vszQ2: '1kg',
+  wlY2L: 5.8,
+  xdc8z: 'DDD Sausage Meat',
+  NmhEQ: 'QG-A.oJrSF2AmUnmgpDNUg',
+  xDa3g: 0,
+  '1QgnP': 2,
+  '1OGzY': '2025-09-06T08:04:01.000Z',
+  hOyM7: 'sZRVo5.eS5acf7GEVw6eCw'
+}
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Supplier ID (hOyM7) value from first row: sZRVo5.eS5acf7GEVw6eCw
+DEBUG: Keys of first raw row from Glide: [
+  '$rowIndex', '$rowID',
+  'Name',      '9TCym',
+  'DkAjz',     'PpduP',
+  'foEbv',     'Xoe7X',
+  'vszQ2',     'wlY2L',
+  'xdc8z',     'NmhEQ',
+  'xDa3g',     '1QgnP',
+  '1OGzY',     'hOyM7'
+]
+Failed to process event 7: [Error: SQLITE_CONSTRAINT: NOT NULL constraint failed: order_lines.sku_id] {
+  errno: 19,
+  code: 'SQLITE_CONSTRAINT'
+}
