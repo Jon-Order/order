@@ -1,6 +1,7 @@
 import fs from 'fs';
 import { parse } from 'csv-parse';
-import db from './db.js';
+import 'dotenv/config';
+import { query, get, run, createOrder, createOrderLine } from './db.js';
 
 async function importOrders() {
     const orderStream = fs.createReadStream('data/Orders.csv');
@@ -8,7 +9,7 @@ async function importOrders() {
 
     for await (const row of orderParser) {
         try {
-            await db.createOrder({
+            await createOrder({
                 id: row['🔒 Order Row ID'],
                 order_date: row['Order Info/Order Date'],
                 status: row['Status/System Status'],
@@ -31,7 +32,7 @@ async function importOrderLines() {
 
     for await (const row of lineParser) {
         try {
-            await db.createOrderLine({
+            await createOrderLine({
                 id: row['🔒 Row ID'],
                 order_id: row['Order Info/Order ID'],
                 sku_id: row['SKU Row ID'],

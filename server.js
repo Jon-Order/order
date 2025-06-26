@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import db from './db.js';
+import { query, get, run, initializeDatabase } from './db.js';
 import logger from './logger.js';
 import { processStagedOrders } from './process-staged-orders.js';
 

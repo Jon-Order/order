@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import db from './db.js';
+import { query, get, run, createOrder, getOrderById } from './db.js';
 import { dataSourceFactory } from './data-sources/adapter-factory.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -38,12 +38,12 @@ async function processOrderById(orderId) {
         
         // Try to fetch the existing order to get the original order_date
         let orderDate = order.items[0].createdAt;
-        const existingOrder = await db.getOrderById(order.id);
+        const existingOrder = await getOrderById(order.id);
         if (existingOrder && existingOrder.order_date) {
             orderDate = existingOrder.order_date;
         }
 
-        await db.createOrder({
+        await createOrder({
             id: order.id,
             external_id: order.id,
             source: 'glide',
@@ -64,16 +64,10 @@ async function processOrderById(orderId) {
                 continue; // Skip if already inserted
             }
             
-            await db.createOrderLine({
-                id: lineId,
-                order_id: order.id,
-                product_code: item.product_code,
-                product_name: item.product_name,
-                quantity: item.quantity,
-                unit_price: item.cost,
-                unit: item.unit,
-                location_id: item.location_id
-            });
+            await run(`
+                INSERT INTO order_lines (id, order_id, product_code, product_name, quantity, unit_price, unit, location_id)
+                VALUES ('${lineId}', '${order.id}', '${item.product_code}', '${item.product_name}', ${item.quantity}, ${item.cost}, '${item.unit}', '${item.location_id}')
+            `);
             insertedLineIds.add(lineId);
         }
 
@@ -81,7 +75,10 @@ async function processOrderById(orderId) {
 
     } catch (error) {
         console.error(`Failed to process order ${orderId}:`, error);
-        db.monitoring.logOperation('manual_order_processing', 'failed', `Order ID: ${orderId}, Error: ${error.message}`);
+        run(`
+            INSERT INTO monitoring (operation, status, details)
+            VALUES ('manual_order_processing', 'failed', 'Order ID: ${orderId}, Error: ${error.message}')
+        `);
     }
 }
 

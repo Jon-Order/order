@@ -506,7 +506,7 @@ const getOrderLinesByOrderId = (orderId) => {
 };
 
 // Export all functions
-export default {
+export {
     query,
     get,
     run,
@@ -529,5 +529,12 @@ export default {
     getAllSuppliers,
     getAllUsers,
     getAllLocationsWithBrand,
-    getOrderLinesByOrderId
+    getOrderLinesByOrderId,
+    getOrdersByStatus,
+    updateOrderStatus,
+    getOrderLines,
+    createWebhookEvent,
+    getWebhookEventById,
+    updateWebhookEvent,
+    deleteWebhookEvent
 }; 
