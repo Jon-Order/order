@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS supplier_mask (
 
 -- Create webhook events table with auto-incrementing ID
 CREATE TABLE IF NOT EXISTS create_order_webhook_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     received_at TIMESTAMP NOT NULL,
     payload TEXT NOT NULL,
     processed BOOLEAN DEFAULT FALSE,
