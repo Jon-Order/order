@@ -121,6 +121,46 @@ async function run(sql, params = []) {
     }
 }
 
+// Get database instance
+async function getDb() {
+    if (isProd) {
+        return {
+            run: async (sql, params = []) => {
+                const { text, values } = convertParams(sql, params);
+                const client = await pgPool.connect();
+                try {
+                    const result = await client.query(text, values);
+                    return { changes: result.rowCount };
+                } finally {
+                    client.release();
+                }
+            },
+            all: async (sql, params = []) => {
+                const { text, values } = convertParams(sql, params);
+                const client = await pgPool.connect();
+                try {
+                    const result = await client.query(text, values);
+                    return result.rows;
+                } finally {
+                    client.release();
+                }
+            },
+            get: async (sql, params = []) => {
+                const { text, values } = convertParams(sql, params);
+                const client = await pgPool.connect();
+                try {
+                    const result = await client.query(text, values);
+                    return result.rows[0];
+                } finally {
+                    client.release();
+                }
+            }
+        };
+    } else {
+        return db;
+    }
+}
+
 // Initialize database connection
 initializeDatabase().catch(err => {
     logger.error('Database initialization failed:', err);
@@ -538,6 +578,7 @@ export {
     query,
     get,
     run,
+    getDb,
     initializeDatabase,
     createOrder,
     getOrderById,
