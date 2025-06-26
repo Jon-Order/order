@@ -185,7 +185,43 @@ class MonitoringService {
             this.checkDiskSpace();
         }, checkInterval);
     }
+
+    // Get metrics for monitoring
+    getMetrics() {
+        return {
+            ...this.getHealthMetrics(),
+            requestStats: {
+                totalRequests: this.healthMetrics.totalRequests,
+                avgResponseTime: this.healthMetrics.avgResponseTime,
+                recentRequests: this.requestTimes.slice(-10)
+            },
+            databaseStats: {
+                ...this.healthMetrics.dailyStats,
+                failedOperations: this.healthMetrics.failedOperations
+            }
+        };
+    }
 }
 
+// Create a singleton instance
 export const monitoring = new MonitoringService();
+
+// Export metrics interface
+export const metrics = {
+    getMetrics: () => monitoring.getMetrics(),
+    trackResponseTime: (duration) => monitoring.trackResponseTime(duration),
+    trackFailedOperation: (error) => monitoring.trackFailedOperation(error),
+    trackDatabaseChange: (changeType) => monitoring.trackDatabaseChange(changeType)
+};
+
+// Export middleware
+export const metricsMiddleware = (req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        monitoring.trackResponseTime(duration);
+    });
+    next();
+};
+
 export default monitoring; 
