@@ -3,7 +3,7 @@ import { QuantityAnalyzer } from '../processors/QuantityAnalyzer.js';
 import { ItemAnalytics } from '../models/ItemAnalytics.js';
 import { ANALYTICS_CONFIG } from '../../../core/config/data-sources.js';
 import logger from '../../../logger.js';
-import db from '../../../db.js';
+import * as db from '../../../db.js';
 
 export class AnalyticsService {
   constructor() {
