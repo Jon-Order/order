@@ -2,7 +2,7 @@ import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
 import pg from 'pg';
 import logger from './logger.js';
-import { monitoring } from './monitoring.js';
+import { monitoring } from './shared/monitoring/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -26,14 +26,23 @@ let pgPool;
 
 const isProd = process.env.NODE_ENV === 'production';
 
-async function initializeDatabase() {
+// Initialize database connection
+export async function initializeDatabase() {
     if (isProd) {
         // PostgreSQL setup for production
+        if (!process.env.DATABASE_URL) {
+            throw new Error('DATABASE_URL environment variable is required in production');
+        }
+
         pgPool = new pg.Pool({
             connectionString: process.env.DATABASE_URL,
             ssl: {
                 rejectUnauthorized: false // Required for Render's PostgreSQL
-            }
+            },
+            // Add some reasonable defaults for a production environment
+            max: 20, // Maximum number of clients in the pool
+            idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+            connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
         });
         
         try {
@@ -58,15 +67,41 @@ async function initializeDatabase() {
             throw err;
         }
     }
+}
 
-    // Run migrations
+// Run database migrations
+export async function runMigrations() {
     const migrationsManager = new MigrationsManager(isProd ? pgPool : db, isProd);
-    try {
-        await migrationsManager.runMigrations();
-        logger.info('Database migrations completed successfully');
-    } catch (err) {
-        logger.error('Failed to run migrations:', err);
-        throw err;
+    await migrationsManager.runMigrations();
+}
+
+// Query wrapper that works with both SQLite and PostgreSQL
+export async function query(sql, params = []) {
+    if (isProd) {
+        const client = await pgPool.connect();
+        try {
+            const result = await client.query(sql, params);
+            return result.rows;
+        } finally {
+            client.release();
+        }
+    } else {
+        return db.all(sql, params);
+    }
+}
+
+// Run wrapper that works with both SQLite and PostgreSQL
+export async function run(sql, params = []) {
+    if (isProd) {
+        const client = await pgPool.connect();
+        try {
+            const result = await client.query(sql, params);
+            return result;
+        } finally {
+            client.release();
+        }
+    } else {
+        return db.run(sql, params);
     }
 }
 
@@ -84,22 +119,6 @@ function convertParams(query, params) {
     return { text: pgQuery, values: pgParams };
 }
 
-// Generic query function that works with both databases
-async function query(sql, params = []) {
-    if (isProd) {
-        const { text, values } = convertParams(sql, params);
-        const client = await pgPool.connect();
-        try {
-            const result = await client.query(text, values);
-            return result.rows;
-        } finally {
-            client.release();
-        }
-    } else {
-        return db.all(sql, params);
-    }
-}
-
 // Generic get function that works with both databases
 async function get(sql, params = []) {
     if (isProd) {
@@ -113,22 +132,6 @@ async function get(sql, params = []) {
         }
     } else {
         return db.get(sql, params);
-    }
-}
-
-// Generic run function that works with both databases
-async function run(sql, params = []) {
-    if (isProd) {
-        const { text, values } = convertParams(sql, params);
-        const client = await pgPool.connect();
-        try {
-            const result = await client.query(text, values);
-            return { changes: result.rowCount };
-        } finally {
-            client.release();
-        }
-    } else {
-        return db.run(sql, params);
     }
 }
 
@@ -652,10 +655,7 @@ async function deleteWebhookEvent(id) {
 
 // Export all functions
 export {
-    initializeDatabase,
-    query,
     get,
-    run,
     getDb,
     setupDatabase,
     withTransaction,
