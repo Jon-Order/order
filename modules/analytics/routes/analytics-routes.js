@@ -2,6 +2,7 @@ import express from 'express';
 import { analyticsService } from '../services/AnalyticsService.js';
 import { dataSourceFactory } from '../../../data-sources/adapter-factory.js';
 import logger from '../../../logger.js';
+import * as db from '../../../db.js';
 
 const router = express.Router();
 
@@ -344,6 +345,41 @@ router.post('/data-sources/switch', async (req, res) => {
     });
     res.status(500).json({
       error: 'Failed to switch data source',
+      message: error.message
+    });
+  }
+});
+
+// Get analytics data
+router.get('/analytics-data', async (req, res) => {
+  try {
+    const results = await db.getLatestAnalytics();
+    res.json({ success: true, data: results });
+  } catch (error) {
+    logger.error('Error getting analytics data', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      error: 'Failed to get analytics data',
+      message: error.message
+    });
+  }
+});
+
+// Store analytics results
+router.post('/analytics-data', async (req, res) => {
+  try {
+    const data = req.body;
+    await db.storeAnalyticsResults(data);
+    res.json({ success: true, message: 'Analytics data stored successfully' });
+  } catch (error) {
+    logger.error('Error storing analytics data', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      error: 'Failed to store analytics data',
       message: error.message
     });
   }
