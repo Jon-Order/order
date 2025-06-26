@@ -57,6 +57,9 @@ async function initializeDatabase() {
             throw err;
         }
     }
+
+    // After connection is established, set up the database schema
+    await setupDatabase();
 }
 
 // Helper function to convert SQLite parameters to PostgreSQL
@@ -161,18 +164,23 @@ async function getDb() {
     }
 }
 
-// Initialize database connection
-initializeDatabase().catch(err => {
-    logger.error('Database initialization failed:', err);
-    process.exit(1);
-});
-
 // Create orders table if it doesn't exist
 async function setupDatabase() {
-    const db = await getDb();
+    const dbInstance = isProd ? {
+        run: async (sql, params = []) => {
+            const { text, values } = convertParams(sql, params);
+            const client = await pgPool.connect();
+            try {
+                const result = await client.query(text, values);
+                return { changes: result.rowCount };
+            } finally {
+                client.release();
+            }
+        }
+    } : db;
     
     // Orders table
-    await db.run(`
+    await dbInstance.run(`
         CREATE TABLE IF NOT EXISTS orders (
             id TEXT PRIMARY KEY,
             local_order_id TEXT,
@@ -188,7 +196,7 @@ async function setupDatabase() {
     `);
 
     // Analytics results table
-    await db.run(`
+    await dbInstance.run(`
         CREATE TABLE IF NOT EXISTS analytics_results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             item_id TEXT NOT NULL,
@@ -205,7 +213,7 @@ async function setupDatabase() {
     `);
 
     // Order lines table
-    await db.run(`
+    await dbInstance.run(`
         CREATE TABLE IF NOT EXISTS order_lines (
             id TEXT PRIMARY KEY,
             order_id TEXT,
@@ -225,7 +233,7 @@ async function setupDatabase() {
     `);
 
     // Webhook events table
-    await db.run(`
+    await dbInstance.run(`
         CREATE TABLE IF NOT EXISTS create_order_webhook_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             received_at TEXT,
@@ -237,9 +245,6 @@ async function setupDatabase() {
 
     logger.info('Database schema is up to date');
 }
-
-// Initialize database
-await setupDatabase();
 
 // Database operations
 async function createOrder(order) {
