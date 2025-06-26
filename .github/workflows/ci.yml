@@ -155,8 +155,6 @@ jobs:
             "${{ env.RENDER_API_URL }}/services/${{ secrets.RENDER_SERVICE_ID }}/deploys")
           DEPLOY_ID=$(echo $RESPONSE | jq -r '.id')
           echo "::set-output name=deploy_id::$DEPLOY_ID"
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
           
       - name: Wait for deploy to complete
         run: |
