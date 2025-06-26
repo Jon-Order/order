@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import MigrationsManager from './db/migrations-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,8 +59,15 @@ async function initializeDatabase() {
         }
     }
 
-    // After connection is established, set up the database schema
-    await setupDatabase();
+    // Run migrations
+    const migrationsManager = new MigrationsManager(isProd ? pgPool : db, isProd);
+    try {
+        await migrationsManager.runMigrations();
+        logger.info('Database migrations completed successfully');
+    } catch (err) {
+        logger.error('Failed to run migrations:', err);
+        throw err;
+    }
 }
 
 // Helper function to convert SQLite parameters to PostgreSQL
@@ -255,39 +263,96 @@ async function setupDatabase() {
     logger.info('Database schema is up to date');
 }
 
-// Database operations
-async function createOrder(order) {
-    const db = await getDb();
-    const now = new Date().toISOString();
-    
-    try {
-        await db.run('BEGIN TRANSACTION');
-        
-        // Use REPLACE INTO to handle duplicates
-        await db.run(
-            `REPLACE INTO orders (
-                id, local_order_id, order_date, status, supplier_id, 
-                location_id, created_by, trial_rating, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                order.id,
-                order.id, // local_order_id is same as id
-                order.order_date,
-                order.status,
-                order.supplier_id,
-                order.location_id,
-                order.created_by,
-                order.trial_rating,
-                order.created_at || now,
-                now
-            ]
-        );
-        
-        await db.run('COMMIT');
-    } catch (error) {
-        await db.run('ROLLBACK');
-        throw error;
+// Helper function for transactions
+async function withTransaction(callback) {
+    if (isProd) {
+        const client = await pgPool.connect();
+        try {
+            await client.query('BEGIN');
+            const result = await callback(client);
+            await client.query('COMMIT');
+            return result;
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    } else {
+        try {
+            await db.run('BEGIN TRANSACTION');
+            const result = await callback(db);
+            await db.run('COMMIT');
+            return result;
+        } catch (error) {
+            await db.run('ROLLBACK');
+            throw error;
+        }
     }
+}
+
+// Insert a full snapshot order line into the order_lines table
+async function createOrderLine(line) {
+    return withTransaction(async (dbClient) => {
+        const timestamp = new Date().toISOString();
+        const sql = isProd 
+            ? `INSERT INTO order_lines (
+                id, order_id, sku_id, product_code, product_name,
+                quantity, cost, unit, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+            : `REPLACE INTO order_lines (
+                id, order_id, sku_id, product_code, product_name,
+                quantity, cost, unit, created_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        
+        const params = [
+            line.id,
+            line.order_id,
+            line.sku_id,
+            line.product_code,
+            line.product_name,
+            line.quantity,
+            line.cost,
+            line.unit,
+            timestamp,
+            timestamp
+        ];
+
+        if (isProd) {
+            await dbClient.query(sql, params);
+        } else {
+            await dbClient.run(sql, params);
+        }
+    });
+}
+
+// Create a new order
+async function createOrder(order) {
+    return withTransaction(async (dbClient) => {
+        const timestamp = new Date().toISOString();
+        const sql = isProd
+            ? `INSERT INTO orders (
+                id, supplier_id, order_date, status, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6)`
+            : `INSERT INTO orders (
+                id, supplier_id, order_date, status, created_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?)`;
+        
+        const params = [
+            order.id,
+            order.supplier_id,
+            order.order_date,
+            order.status,
+            timestamp,
+            timestamp
+        ];
+
+        if (isProd) {
+            await dbClient.query(sql, params);
+        } else {
+            await dbClient.run(sql, params);
+        }
+    });
 }
 
 async function getOrderById(orderId) {
@@ -439,64 +504,36 @@ const getRecentRows = (table) => {
 
 // Insert a webhook event into the staging table
 async function insertWebhookEvent(payload) {
-    const db = await getDb();
-    const now = new Date().toISOString();
-    return db.run(
-        'INSERT INTO create_order_webhook_events (received_at, payload) VALUES (?, ?)',
-        [now, JSON.stringify(payload)]
-    );
+    const sql = `
+        INSERT INTO webhook_events (payload)
+        VALUES (?)
+        RETURNING id
+    `;
+    const result = await run(sql, [JSON.stringify(payload)]);
+    return result.lastID || result.rows[0].id;
 }
 
 // Get all unprocessed webhook events
 async function getUnprocessedWebhookEvents() {
-    const db = await getDb();
-    return db.all(
-        'SELECT * FROM create_order_webhook_events WHERE processed = 0 ORDER BY received_at ASC'
-    );
+    const sql = `
+        SELECT * FROM webhook_events
+        WHERE processed = FALSE
+        ORDER BY received_at ASC
+        LIMIT 100
+    `;
+    return await query(sql);
 }
 
 // Mark a webhook event as processed
-async function markWebhookEventProcessed(eventId) {
-    const db = await getDb();
-    const now = new Date().toISOString();
-    return db.run(
-        'UPDATE create_order_webhook_events SET processed = 1, processed_at = ? WHERE id = ?',
-        [now, eventId]
-    );
-}
-
-// Insert a full snapshot order line into the order_lines table
-async function createOrderLine(line) {
-    const db = await getDb();
-    
-    try {
-        await db.run('BEGIN TRANSACTION');
-        
-        // Use REPLACE INTO to handle duplicates
-        await db.run(
-            `REPLACE INTO order_lines (
-                id, order_id, sku_id, product_code, product_name,
-                quantity, cost, unit, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                line.id,
-                line.order_id,
-                line.sku_id,
-                line.product_code,
-                line.product_name,
-                line.quantity,
-                line.cost,
-                line.unit,
-                line.created_at,
-                line.created_at // Use created_at as updated_at for new lines
-            ]
-        );
-        
-        await db.run('COMMIT');
-    } catch (error) {
-        await db.run('ROLLBACK');
-        throw error;
-    }
+async function markWebhookEventProcessed(eventId, error = null) {
+    const sql = `
+        UPDATE webhook_events
+        SET processed = TRUE,
+            processed_at = CURRENT_TIMESTAMP,
+            error = ?
+        WHERE id = ?
+    `;
+    await run(sql, [error, eventId]);
 }
 
 // Fetch all locations (id and name)
