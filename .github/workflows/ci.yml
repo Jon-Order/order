@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  DEPLOY_LOCK_BRANCH: deploy-lock
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -80,19 +83,126 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Verify deploy hook
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Configure Git
         run: |
-          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
-            echo "✅ Deploy hook is available"
-          else
-            echo "❌ Deploy hook is missing"
-            exit 1
-          fi
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
+      - name: Wait for previous deploys
+        run: |
+          # Function to check if deploy is in progress
+          check_deploy_status() {
+            # Get deployment status from Render
+            STATUS=$(curl -s "${{ secrets.RENDER_STATUS_HOOK }}" | jq -r '.status')
+            if [ "$STATUS" = "live" ]; then
+              return 0  # No deploy in progress
+            else
+              return 1  # Deploy in progress
+            fi
+          }
+          
+          # Wait for any existing deploy to complete
+          echo "Checking for existing deployments..."
+          while ! check_deploy_status; do
+            echo "Deploy in progress, waiting 30 seconds..."
+            sleep 30
+          done
+          echo "No active deploys found, proceeding..."
+        env:
+          RENDER_STATUS_HOOK: ${{ secrets.RENDER_STATUS_HOOK }}
+          
+      - name: Create deployment
+        id: deployment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'production',
+              auto_merge: false,
+              required_contexts: []
+            });
+            return deployment.data.id;
+            
+      - name: Update deployment status (in_progress)
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'in_progress'
+            });
+            
+      - name: Deploy to Render
+        id: deploy
+        run: |
+          RESPONSE=$(curl -s -X POST ${{ secrets.RENDER_DEPLOY_HOOK }})
+          echo "::set-output name=deploy_id::$(echo $RESPONSE | jq -r '.deploy.id')"
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
           
-      - name: Deploy to Render
+      - name: Wait for deploy to complete
         run: |
-          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+          # Function to check deploy status
+          check_deploy() {
+            STATUS=$(curl -s "${{ secrets.RENDER_STATUS_HOOK }}" | jq -r '.status')
+            echo "Current status: $STATUS"
+            if [ "$STATUS" = "live" ]; then
+              return 0
+            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ]; then
+              echo "Deploy failed or was cancelled"
+              return 2
+            else
+              return 1
+            fi
+          }
+          
+          # Wait for deploy to complete
+          echo "Waiting for deploy to complete..."
+          while true; do
+            if check_deploy; then
+              echo "Deploy completed successfully"
+              exit 0
+            elif [ $? -eq 2 ]; then
+              echo "Deploy failed"
+              exit 1
+            else
+              echo "Deploy in progress, waiting 30 seconds..."
+              sleep 30
+            fi
+          done
         env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }} 
+          RENDER_STATUS_HOOK: ${{ secrets.RENDER_STATUS_HOOK }}
+          
+      - name: Update deployment status (success)
+        if: success()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'success',
+              environment_url: 'https://givemeorder.app'
+            });
+            
+      - name: Update deployment status (failure)
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'failure'
+            }); 
