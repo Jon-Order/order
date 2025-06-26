@@ -505,7 +505,35 @@ const getOrderLinesByOrderId = (orderId) => {
     });
 };
 
-// Export all functions
+// Webhook functions
+async function createWebhookEvent(event) {
+    const sql = `
+        INSERT INTO webhook_events (id, event_type, payload, processed)
+        VALUES (?, ?, ?, ?)
+    `;
+    return run(sql, [event.id, event.event_type, JSON.stringify(event.payload), false]);
+}
+
+async function getWebhookEventById(id) {
+    const sql = 'SELECT * FROM webhook_events WHERE id = ?';
+    return get(sql, [id]);
+}
+
+async function updateWebhookEvent(id, updates) {
+    const sql = `
+        UPDATE webhook_events
+        SET processed = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+    return run(sql, [updates.processed, id]);
+}
+
+async function deleteWebhookEvent(id) {
+    const sql = 'DELETE FROM webhook_events WHERE id = ?';
+    return run(sql, [id]);
+}
+
+// Export database functions
 export {
     query,
     get,
@@ -513,25 +541,12 @@ export {
     initializeDatabase,
     createOrder,
     getOrderById,
-    getSupplierOrders,
-    getAllOrders,
-    backupDatabase,
-    storeAnalyticsResults,
-    getLatestAnalytics,
-    listTables,
-    countRows,
-    getRecentRows,
-    insertWebhookEvent,
     getUnprocessedWebhookEvents,
     markWebhookEventProcessed,
     createOrderLine,
-    getAllLocations,
-    getAllSuppliers,
-    getAllUsers,
-    getAllLocationsWithBrand,
-    getOrderLinesByOrderId,
     getOrdersByStatus,
     updateOrderStatus,
+    getAllOrders,
     getOrderLines,
     createWebhookEvent,
     getWebhookEventById,
