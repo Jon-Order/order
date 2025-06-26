@@ -61,7 +61,12 @@ jobs:
           done
           
       - name: Run tests
-        run: npm test
+        run: |
+          node test-config.js
+          node test-analytics.js
+          node test-webhook.js
+          node test-adapter-debug.js
+          node test-analytics-path.js
         env:
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
