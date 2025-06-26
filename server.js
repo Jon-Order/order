@@ -7,6 +7,7 @@ import * as db from './db.js';
 import logger from './logger.js';
 import { processStagedOrders } from './process-staged-orders.js';
 import { metricsMiddleware, metrics } from './shared/monitoring/index.js';
+import { MigrationsManager } from './migrations/migrations-manager.js';
 
 // Import analytics routes
 import analyticsRoutes from './modules/analytics/routes/analytics-routes.js';
@@ -17,8 +18,44 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize database before setting up routes
-await db.initializeDatabase();
+// Application state tracking
+let isInitialized = false;
+let isMigrating = false;
+let lastMigrationError = null;
+
+// Function to run migrations
+async function runMigrations() {
+    try {
+        isMigrating = true;
+        const migrationsManager = new MigrationsManager(db, process.env.NODE_ENV === 'production');
+        await migrationsManager.runMigrations();
+        isMigrating = false;
+        lastMigrationError = null;
+        isInitialized = true;
+    } catch (error) {
+        lastMigrationError = error;
+        isMigrating = false;
+        logger.error('Migration failed:', error);
+        throw error;
+    }
+}
+
+// Initialize the application
+async function initialize() {
+    try {
+        await runMigrations();
+        logger.info('Application initialized successfully');
+    } catch (error) {
+        logger.error('Failed to initialize application:', error);
+        throw error;
+    }
+}
+
+// Call initialize on startup
+initialize().catch(error => {
+    logger.error('Failed to initialize application:', error);
+    process.exit(1);
+});
 
 // Middleware
 app.use(cors());
@@ -68,63 +105,55 @@ app.get('/monitoring', (req, res) => {
   res.json(monitoringData);
 });
 
-// Enhanced health check endpoint
-app.get('/health', async (req, res) => {
-  try {
-    // Check database connection
-    await db.query('SELECT 1');
-    
-    // Check memory usage
-    const memoryUsage = process.memoryUsage();
-    
-    // Check system uptime
-    const uptime = process.uptime();
-    
-    // Get active connections (if available)
-    let activeConnections = 0;
-    if (db.getActiveConnections) {
-      activeConnections = await db.getActiveConnections();
+// Health check endpoint for Render
+app.get('/api/health', async (req, res) => {
+    try {
+        // If we're still running migrations, return 503 Service Unavailable
+        if (isMigrating) {
+            return res.status(503).json({
+                status: 'initializing',
+                message: 'Running database migrations'
+            });
+        }
+
+        // If migrations failed, return 503 Service Unavailable
+        if (lastMigrationError) {
+            return res.status(503).json({
+                status: 'unhealthy',
+                message: 'Migration failed',
+                error: lastMigrationError.message
+            });
+        }
+
+        // If not initialized, return 503 Service Unavailable
+        if (!isInitialized) {
+            return res.status(503).json({
+                status: 'initializing',
+                message: 'Application is starting'
+            });
+        }
+
+        // Check database connection
+        await db.query('SELECT 1');
+
+        // All checks passed
+        res.status(200).json({
+            status: 'healthy',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        logger.error('Health check failed:', error);
+        res.status(503).json({
+            status: 'unhealthy',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
     }
-
-    const healthStatus = {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: uptime,
-      memory: {
-        heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + 'MB',
-        heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + 'MB',
-        rss: Math.round(memoryUsage.rss / 1024 / 1024) + 'MB'
-      },
-      database: {
-        connected: true,
-        activeConnections: activeConnections
-      },
-      environment: process.env.NODE_ENV || 'development'
-    };
-
-    res.json(healthStatus);
-  } catch (error) {
-    logger.error('Health check failed', {
-      error: error.message,
-      stack: error.stack
-    });
-
-    res.status(503).json({
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      error: error.message
-    });
-  }
 });
 
 // Simple health check for load balancers
 app.get('/ping', (req, res) => {
   res.status(200).send('pong');
-});
-
-// Health check endpoint for Render
-app.get('/api/health', (req, res) => {
-    res.status(200).json({ status: 'healthy' });
 });
 
 // Analytics page
