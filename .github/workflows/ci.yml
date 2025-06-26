@@ -8,7 +8,6 @@ on:
     branches: [ main ]
 
 env:
-  DEPLOY_LOCK_BRANCH: deploy-lock
   RENDER_API_URL: https://api.render.com/v1
 
 jobs:
@@ -89,37 +88,6 @@ jobs:
         with:
           fetch-depth: 0
           
-      - name: Configure Git
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          
-      - name: Wait for previous deploys
-        run: |
-          # Function to check if deploy is in progress
-          check_deploy_status() {
-            # Get deployment status from Render API
-            STATUS=$(curl -s \
-              -H "Accept: application/json" \
-              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-              "${{ env.RENDER_API_URL }}/services/${{ secrets.RENDER_SERVICE_ID }}" \
-              | jq -r '.state')
-            
-            if [ "$STATUS" = "live" ]; then
-              return 0  # No deploy in progress
-            else
-              return 1  # Deploy in progress
-            fi
-          }
-          
-          # Wait for any existing deploy to complete
-          echo "Checking for existing deployments..."
-          while ! check_deploy_status; do
-            echo "Deploy in progress, waiting 30 seconds..."
-            sleep 30
-          done
-          echo "No active deploys found, proceeding..."
-          
       - name: Create deployment
         id: deployment
         uses: actions/github-script@v6
@@ -149,47 +117,59 @@ jobs:
       - name: Deploy to Render
         id: deploy
         run: |
+          echo "Triggering Render deployment..."
           RESPONSE=$(curl -s -X POST \
             -H "Accept: application/json" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             "${{ env.RENDER_API_URL }}/services/${{ secrets.RENDER_SERVICE_ID }}/deploys")
+          
+          # Extract deploy ID and verify it
           DEPLOY_ID=$(echo $RESPONSE | jq -r '.id')
+          if [ -z "$DEPLOY_ID" ] || [ "$DEPLOY_ID" = "null" ]; then
+            echo "Error: Failed to get deploy ID from response"
+            echo "Response was: $RESPONSE"
+            exit 1
+          fi
+          echo "Render deploy ID: $DEPLOY_ID"
           echo "::set-output name=deploy_id::$DEPLOY_ID"
           
       - name: Wait for deploy to complete
         run: |
-          # Function to check deploy status
-          check_deploy() {
-            STATUS=$(curl -s \
+          DEPLOY_ID="${{ steps.deploy.outputs.deploy_id }}"
+          echo "Monitoring deploy $DEPLOY_ID..."
+          
+          while true; do
+            # Get deploy status from the specific deploy endpoint
+            RESPONSE=$(curl -s \
               -H "Accept: application/json" \
               -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-              "${{ env.RENDER_API_URL }}/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/${{ steps.deploy.outputs.deploy_id }}" \
-              | jq -r '.status')
+              "${{ env.RENDER_API_URL }}/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/$DEPLOY_ID")
             
-            echo "Current status: $STATUS"
-            if [ "$STATUS" = "live" ]; then
-              return 0
-            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ]; then
-              echo "Deploy failed or was cancelled"
-              return 2
-            else
-              return 1
-            fi
-          }
-          
-          # Wait for deploy to complete
-          echo "Waiting for deploy to complete..."
-          while true; do
-            if check_deploy; then
-              echo "Deploy completed successfully"
-              exit 0
-            elif [ $? -eq 2 ]; then
-              echo "Deploy failed"
-              exit 1
-            else
-              echo "Deploy in progress, waiting 30 seconds..."
-              sleep 30
-            fi
+            STATUS=$(echo $RESPONSE | jq -r '.status')
+            COMMIT_ID=$(echo $RESPONSE | jq -r '.commit.id')
+            
+            echo "Deploy status: $STATUS (commit: $COMMIT_ID)"
+            
+            case $STATUS in
+              "live")
+                echo "✅ Deploy completed successfully"
+                exit 0
+                ;;
+              "failed"|"cancelled"|"deactivated")
+                echo "❌ Deploy failed or was cancelled"
+                echo "Full response: $RESPONSE"
+                exit 1
+                ;;
+              "build_in_progress"|"update_in_progress"|"created")
+                echo "⏳ Deploy in progress ($STATUS), waiting 30 seconds..."
+                sleep 30
+                ;;
+              *)
+                echo "⚠️ Unknown status: $STATUS"
+                echo "Full response: $RESPONSE"
+                exit 1
+                ;;
+            esac
           done
           
       - name: Update deployment status (success)
