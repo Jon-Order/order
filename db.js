@@ -166,19 +166,6 @@ async function getDb() {
 
 // Create orders table if it doesn't exist
 async function setupDatabase() {
-    const dbInstance = isProd ? {
-        run: async (sql, params = []) => {
-            const { text, values } = convertParams(sql, params);
-            const client = await pgPool.connect();
-            try {
-                const result = await client.query(text, values);
-                return { changes: result.rowCount };
-            } finally {
-                client.release();
-            }
-        }
-    } : db;
-    
     if (isProd) {
         // Run PostgreSQL migrations
         const migrationFiles = ['003-fix-postgres-autoincrement.sql'];
@@ -198,43 +185,44 @@ async function setupDatabase() {
                 throw err; // We want to fail if migrations fail
             }
         }
-    } else {
-        // SQLite setup
-        await dbInstance.run(`
-            CREATE TABLE IF NOT EXISTS orders (
-                id TEXT PRIMARY KEY,
-                local_order_id TEXT,
-                order_date TEXT,
-                status TEXT,
-                supplier_id TEXT,
-                location_id TEXT,
-                created_by TEXT,
-                trial_rating TEXT,
-                created_at TEXT,
-                updated_at TEXT
-            )
-        `);
-
-        // Analytics results table for SQLite
-        await dbInstance.run(`
-            CREATE TABLE IF NOT EXISTS analytics_results (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                item_id TEXT NOT NULL,
-                total_quantity INTEGER NOT NULL,
-                average_quantity REAL NOT NULL,
-                order_count INTEGER NOT NULL,
-                first_order_date TEXT,
-                last_order_date TEXT,
-                min_quantity INTEGER,
-                max_quantity INTEGER,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
+        return; // Exit early for production
     }
 
-    // Order lines table
-    await dbInstance.run(`
+    // SQLite setup for development only
+    await db.run(`
+        CREATE TABLE IF NOT EXISTS orders (
+            id TEXT PRIMARY KEY,
+            local_order_id TEXT,
+            order_date TEXT,
+            status TEXT,
+            supplier_id TEXT,
+            location_id TEXT,
+            created_by TEXT,
+            trial_rating TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        )
+    `);
+
+    // Analytics results table for SQLite
+    await db.run(`
+        CREATE TABLE IF NOT EXISTS analytics_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id TEXT NOT NULL,
+            total_quantity INTEGER NOT NULL,
+            average_quantity REAL NOT NULL,
+            order_count INTEGER NOT NULL,
+            first_order_date TEXT,
+            last_order_date TEXT,
+            min_quantity INTEGER,
+            max_quantity INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Order lines table for SQLite
+    await db.run(`
         CREATE TABLE IF NOT EXISTS order_lines (
             id TEXT PRIMARY KEY,
             order_id TEXT,
@@ -248,13 +236,13 @@ async function setupDatabase() {
             sku TEXT,
             sku_name TEXT,
             pack_size INTEGER,
-            created_at TEXT,
-            updated_at TEXT
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     `);
 
     // Webhook events table
-    await dbInstance.run(`
+    await db.run(`
         CREATE TABLE IF NOT EXISTS create_order_webhook_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             received_at TEXT,
