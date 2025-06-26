@@ -19,6 +19,25 @@ class MigrationsManager {
         return crypto.createHash('sha256').update(content).digest('hex');
     }
 
+    // Ensure migrations table exists
+    async ensureMigrationsTable() {
+        const sql = `
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                checksum TEXT NOT NULL,
+                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `;
+
+        if (this.isProd) {
+            await this.db.query(sql);
+        } else {
+            await this.db.run(sql);
+        }
+        logger.info('Ensured migrations table exists');
+    }
+
     // Get all migration files
     async getMigrationFiles() {
         const files = await fs.promises.readdir(this.migrationsDir);
@@ -51,7 +70,7 @@ class MigrationsManager {
                 return await this.db.all('SELECT version, name, checksum FROM schema_migrations ORDER BY version') || [];
             }
         } catch (error) {
-            if (error.code === '42P01') { // Table doesn't exist
+            if (error.code === '42P01' || error.code === 'SQLITE_ERROR') { // Table doesn't exist
                 return [];
             }
             throw error;
@@ -124,6 +143,8 @@ class MigrationsManager {
 
     // Run all pending migrations
     async runMigrations() {
+        await this.ensureMigrationsTable();
+        
         const files = await this.getMigrationFiles();
         const appliedMigrations = await this.getAppliedMigrations();
         
