@@ -547,7 +547,7 @@ export {
     getOrdersByStatus,
     updateOrderStatus,
     getAllOrders,
-    getOrderLines,
+    getOrderLinesByOrderId,
     createWebhookEvent,
     getWebhookEventById,
     updateWebhookEvent,
