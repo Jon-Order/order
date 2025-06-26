@@ -28,6 +28,19 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
+      - name: Verify secrets
+        run: |
+          if [ -n "$GLIDE_API_TOKEN" ] && [ -n "$GLIDE_APP_ID" ] && [ -n "$GLIDE_ORDER_LINES_TABLE_NAME" ]; then
+            echo "✅ All required secrets are available"
+          else
+            echo "❌ Some secrets are missing"
+            exit 1
+          fi
+        env:
+          GLIDE_API_TOKEN: ${{ secrets.GLIDE_API_TOKEN }}
+          GLIDE_APP_ID: ${{ secrets.GLIDE_APP_ID }}
+          GLIDE_ORDER_LINES_TABLE_NAME: ${{ secrets.GLIDE_ORDER_LINES_TABLE_NAME }}
+      
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
@@ -62,6 +75,17 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Verify deploy hook
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "✅ Deploy hook is available"
+          else
+            echo "❌ Deploy hook is missing"
+            exit 1
+          fi
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          
       - name: Deploy to Render
         run: |
           curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
