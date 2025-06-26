@@ -544,7 +544,6 @@ export {
     getUnprocessedWebhookEvents,
     markWebhookEventProcessed,
     createOrderLine,
-    updateOrderStatus,
     getAllOrders,
     getOrderLinesByOrderId,
     createWebhookEvent,
