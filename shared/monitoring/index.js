@@ -222,6 +222,4 @@ export const metricsMiddleware = (req, res, next) => {
         monitoring.trackResponseTime(duration);
     });
     next();
-};
-
-export default monitoring; 
+}; 

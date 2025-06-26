@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { promises as fs } from 'fs';
-import MigrationsManager from './db/migrations-manager.js';
+import { MigrationsManager } from './db/migrations-manager.js';
 import * as db from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);

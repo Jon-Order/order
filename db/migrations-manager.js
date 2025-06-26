@@ -240,4 +240,5 @@ class MigrationsManager {
     }
 }
 
-export default MigrationsManager; 
+// Export the MigrationsManager class
+export { MigrationsManager }; 
