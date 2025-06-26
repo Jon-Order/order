@@ -181,7 +181,7 @@ async function setupDatabase() {
     
     if (isProd) {
         // Run PostgreSQL migrations
-        const migrationFiles = ['002-sqlite-to-postgres.sql', '003-fix-postgres-autoincrement.sql'];
+        const migrationFiles = ['003-fix-postgres-autoincrement.sql'];
         for (const migrationFile of migrationFiles) {
             const migrationPath = path.join(__dirname, 'migrations', migrationFile);
             try {
@@ -195,7 +195,7 @@ async function setupDatabase() {
                 }
             } catch (err) {
                 logger.error(`Error running migration ${migrationFile}:`, err);
-                // Don't throw error, continue with other migrations
+                throw err; // We want to fail if migrations fail
             }
         }
     } else {
