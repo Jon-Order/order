@@ -1,5 +1,6 @@
 name: CI/CD Pipeline
 
+# Trigger deployment to test Render API integration
 on:
   push:
     branches: [ main ]
@@ -8,6 +9,7 @@ on:
 
 env:
   DEPLOY_LOCK_BRANCH: deploy-lock
+  RENDER_API_URL: https://api.render.com/v1
 
 jobs:
   test:
@@ -96,8 +98,13 @@ jobs:
         run: |
           # Function to check if deploy is in progress
           check_deploy_status() {
-            # Get deployment status from Render
-            STATUS=$(curl -s "${{ secrets.RENDER_STATUS_HOOK }}" | jq -r '.status')
+            # Get deployment status from Render API
+            STATUS=$(curl -s \
+              -H "Accept: application/json" \
+              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+              "${{ env.RENDER_API_URL }}/services/${{ secrets.RENDER_SERVICE_ID }}" \
+              | jq -r '.state')
+            
             if [ "$STATUS" = "live" ]; then
               return 0  # No deploy in progress
             else
@@ -112,8 +119,6 @@ jobs:
             sleep 30
           done
           echo "No active deploys found, proceeding..."
-        env:
-          RENDER_STATUS_HOOK: ${{ secrets.RENDER_STATUS_HOOK }}
           
       - name: Create deployment
         id: deployment
@@ -144,8 +149,12 @@ jobs:
       - name: Deploy to Render
         id: deploy
         run: |
-          RESPONSE=$(curl -s -X POST ${{ secrets.RENDER_DEPLOY_HOOK }})
-          echo "::set-output name=deploy_id::$(echo $RESPONSE | jq -r '.deploy.id')"
+          RESPONSE=$(curl -s -X POST \
+            -H "Accept: application/json" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "${{ env.RENDER_API_URL }}/services/${{ secrets.RENDER_SERVICE_ID }}/deploys")
+          DEPLOY_ID=$(echo $RESPONSE | jq -r '.id')
+          echo "::set-output name=deploy_id::$DEPLOY_ID"
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
           
@@ -153,7 +162,12 @@ jobs:
         run: |
           # Function to check deploy status
           check_deploy() {
-            STATUS=$(curl -s "${{ secrets.RENDER_STATUS_HOOK }}" | jq -r '.status')
+            STATUS=$(curl -s \
+              -H "Accept: application/json" \
+              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+              "${{ env.RENDER_API_URL }}/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/${{ steps.deploy.outputs.deploy_id }}" \
+              | jq -r '.status')
+            
             echo "Current status: $STATUS"
             if [ "$STATUS" = "live" ]; then
               return 0
@@ -179,8 +193,6 @@ jobs:
               sleep 30
             fi
           done
-        env:
-          RENDER_STATUS_HOOK: ${{ secrets.RENDER_STATUS_HOOK }}
           
       - name: Update deployment status (success)
         if: success()
