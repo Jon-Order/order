@@ -16,14 +16,19 @@ class MigrationsManager {
 
     // Get checksum of a file's contents
     calculateChecksum(content) {
-        return crypto.createHash('md5').update(content).digest('hex');
+        return crypto.createHash('md4').update(content).digest('hex');
     }
 
     // Get all migration files
     async getMigrationFiles() {
         const files = await fs.promises.readdir(this.migrationsDir);
         return files
-            .filter(f => f.endsWith('.sql'))
+            .filter(f => {
+                // Filter out database-specific migrations based on environment
+                if (f.includes('postgres') && !this.isProd) return false;
+                if (f.includes('sqlite') && this.isProd) return false;
+                return f.endsWith('.sql');
+            })
             .sort((a, b) => {
                 // Extract version numbers, handling both formats: '001' and '002_0002'
                 const getVersion = (filename) => {
@@ -121,6 +126,9 @@ class MigrationsManager {
     async runMigrations() {
         const files = await this.getMigrationFiles();
         const appliedMigrations = await this.getAppliedMigrations();
+        
+        logger.info('Running migrations for ' + (this.isProd ? 'PostgreSQL' : 'SQLite'));
+        logger.info('Migration files to run:', files);
         
         for (const file of files) {
             const version = parseInt(file.split(/[-_]/)[0]);
