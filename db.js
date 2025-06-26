@@ -500,64 +500,90 @@ async function createOrderLine(line) {
 }
 
 // Fetch all locations (id and name)
-const getAllLocations = () => {
-    return new Promise((resolve, reject) => {
-        db.all('SELECT id, name FROM locations', [], (err, rows) => {
-            if (err) return reject(err);
-            resolve(rows);
+async function getAllLocations() {
+    if (isProd) {
+        const result = await query('SELECT id, name FROM locations');
+        return result;
+    } else {
+        return new Promise((resolve, reject) => {
+            db.all('SELECT id, name FROM locations', [], (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows);
+            });
         });
-    });
-};
+    }
+}
 
 // Fetch all suppliers (id and name)
-const getAllSuppliers = () => {
-    return new Promise((resolve, reject) => {
-        db.all('SELECT id, name FROM suppliers', [], (err, rows) => {
-            if (err) return reject(err);
-            resolve(rows);
+async function getAllSuppliers() {
+    if (isProd) {
+        const result = await query('SELECT id, name FROM suppliers');
+        return result;
+    } else {
+        return new Promise((resolve, reject) => {
+            db.all('SELECT id, name FROM suppliers', [], (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows);
+            });
         });
-    });
-};
+    }
+}
 
 // Fetch all users (id and name)
-const getAllUsers = () => {
-    return new Promise((resolve, reject) => {
-        db.all('SELECT id, name FROM users', [], (err, rows) => {
-            if (err) return reject(err);
-            resolve(rows);
+async function getAllUsers() {
+    if (isProd) {
+        const result = await query('SELECT id, name FROM users');
+        return result;
+    } else {
+        return new Promise((resolve, reject) => {
+            db.all('SELECT id, name FROM users', [], (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows);
+            });
         });
-    });
-};
+    }
+}
 
 // Fetch all locations with brand name
-const getAllLocationsWithBrand = () => {
-    return new Promise((resolve, reject) => {
-        const sql = `
-            SELECT locations.id, locations.name, locations.brand_id, brands.name AS brand_name
-            FROM locations
-            LEFT JOIN brands ON locations.brand_id = brands.id
-        `;
-        db.all(sql, [], (err, rows) => {
-            if (err) return reject(err);
-            resolve(rows);
+async function getAllLocationsWithBrand() {
+    const sql = `
+        SELECT locations.id, locations.name, locations.brand_id, brands.name AS brand_name
+        FROM locations
+        LEFT JOIN brands ON locations.brand_id = brands.id
+    `;
+    if (isProd) {
+        const result = await query(sql);
+        return result;
+    } else {
+        return new Promise((resolve, reject) => {
+            db.all(sql, [], (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows);
+            });
         });
-    });
-};
+    }
+}
 
 // Fetch order lines for a given order_id, only where quantity > 0
-const getOrderLinesByOrderId = (orderId) => {
-    return new Promise((resolve, reject) => {
-        const sql = `
-            SELECT quantity, unit, product_name, product_code
-            FROM order_lines
-            WHERE order_id = ? AND quantity > 0
-        `;
-        db.all(sql, [orderId], (err, rows) => {
-            if (err) return reject(err);
-            resolve(rows);
+async function getOrderLinesByOrderId(orderId) {
+    const sql = `
+        SELECT quantity, unit, product_name, product_code
+        FROM order_lines
+        WHERE order_id = $1 AND quantity > 0
+    `;
+    if (isProd) {
+        const result = await query(sql, [orderId]);
+        return result;
+    } else {
+        return new Promise((resolve, reject) => {
+            db.all('SELECT quantity, unit, product_name, product_code FROM order_lines WHERE order_id = ? AND quantity > 0', 
+                [orderId], (err, rows) => {
+                    if (err) return reject(err);
+                    resolve(rows);
+                });
         });
-    });
-};
+    }
+}
 
 // Webhook functions
 async function createWebhookEvent(event) {
@@ -604,5 +630,9 @@ export {
     createWebhookEvent,
     getWebhookEventById,
     updateWebhookEvent,
-    deleteWebhookEvent
+    deleteWebhookEvent,
+    getAllLocations,
+    getAllSuppliers,
+    getAllUsers,
+    getAllLocationsWithBrand
 }; 
