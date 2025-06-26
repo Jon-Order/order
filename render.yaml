@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: order-supplier-api
+    name: order
     env: node
     region: oregon
     plan: starter
