@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { query, get, run, initializeDatabase } from './db.js';
+import * as db from './db.js';
 import logger from './logger.js';
 import { processStagedOrders } from './process-staged-orders.js';
 
@@ -15,6 +15,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Initialize database before setting up routes
+await db.initializeDatabase();
 
 // Middleware
 app.use(cors());
