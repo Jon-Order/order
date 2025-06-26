@@ -6412,3 +6412,8 @@
 {"duration":"5ms","ip":"::1","level":"info","message":"Request processed","method":"GET","path":"/api/locations-with-brand","status":304,"timestamp":"2025-06-26T16:55:56.369Z"}
 {"duration":"6ms","ip":"::1","level":"info","message":"Request processed","method":"GET","path":"/api/users","status":304,"timestamp":"2025-06-26T16:55:56.370Z"}
 {"duration":"3ms","ip":"::1","level":"info","message":"Request processed","method":"GET","path":"/admin/orders","status":304,"timestamp":"2025-06-26T16:55:56.381Z"}
+{"duration":"5ms","ip":"::1","level":"info","message":"Request processed","method":"GET","path":"/api/locations","status":304,"timestamp":"2025-06-26T16:56:56.418Z"}
+{"duration":"6ms","ip":"::1","level":"info","message":"Request processed","method":"GET","path":"/api/suppliers","status":304,"timestamp":"2025-06-26T16:56:56.420Z"}
+{"duration":"7ms","ip":"::1","level":"info","message":"Request processed","method":"GET","path":"/api/users","status":304,"timestamp":"2025-06-26T16:56:56.421Z"}
+{"duration":"1ms","ip":"::1","level":"info","message":"Request processed","method":"GET","path":"/api/locations-with-brand","status":304,"timestamp":"2025-06-26T16:56:56.421Z"}
+{"duration":"2ms","ip":"::1","level":"info","message":"Request processed","method":"GET","path":"/admin/orders","status":304,"timestamp":"2025-06-26T16:56:56.427Z"}

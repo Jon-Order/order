@@ -14,7 +14,9 @@ export const DATA_SOURCES = {
     timeout: parseInt(process.env.GLIDE_API_TIMEOUT) || 30000
   },
   internal: {
-    databaseUrl: process.env.INTERNAL_DB_URL,
+    databaseUrl: process.env.NODE_ENV === 'test' 
+      ? process.env.DATABASE_URL  // Use PostgreSQL in test
+      : process.env.INTERNAL_DB_URL, // Use SQLite in development
     syncInterval: process.env.INTERNAL_SYNC_INTERVAL || 'daily',
     connectionPool: parseInt(process.env.DB_CONNECTION_POOL) || 10
   }
