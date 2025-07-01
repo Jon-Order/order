@@ -224,16 +224,34 @@ app.post('/webhook/create-order', async (req, res) => {
       });
     }
 
-    // Store the raw webhook event in the staging table
-    logger.info('Attempting to store webhook event');
+    // Store the webhook event and process it immediately
+    logger.info('Storing and processing webhook event');
     const eventId = await db.insertWebhookEvent(data);
-    logger.info('Successfully stored webhook event', { eventId });
-
-    res.json({
-      success: true,
-      message: 'Order webhook event received and staged',
-      event_id: eventId
-    });
+    
+    // Process the order immediately
+    try {
+      await processStagedOrders();
+      logger.info('Successfully processed webhook event', { eventId });
+      
+      res.json({
+        success: true,
+        message: 'Order webhook event received and processed',
+        event_id: eventId
+      });
+    } catch (error) {
+      logger.error('Error processing webhook event', { 
+        eventId,
+        error: error.message,
+        stack: error.stack
+      });
+      
+      // Still return 200 since we stored the event successfully
+      res.json({
+        success: true,
+        message: 'Order webhook event received but processing failed. Will retry later.',
+        event_id: eventId
+      });
+    }
 
   } catch (error) {
     // Enhanced error logging
@@ -252,26 +270,11 @@ app.post('/webhook/create-order', async (req, res) => {
         column: error.column,
         dataType: error.dataType,
         constraint: error.constraint
-      },
-      request: {
-        body: req.body,
-        headers: req.headers,
-        method: req.method,
-        url: req.url,
-        ip: req.ip
       }
     });
-
-    // Send a more detailed error response
     res.status(500).json({
-      error: 'Failed to process webhook',
-      message: error.message,
-      details: {
-        type: error.name,
-        code: error.code,
-        hint: error.hint,
-        position: error.position
-      }
+      error: 'Internal server error',
+      message: error.message
     });
   }
 });
