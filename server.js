@@ -165,11 +165,69 @@ app.use('/api/analytics', analyticsRoutes);
 // Glide Webhook Endpoint for Creating Orders
 app.post('/webhook/create-order', async (req, res) => {
   try {
+    // Log the raw request
+    logger.info('Webhook request received', {
+      headers: req.headers,
+      rawBody: req.body,
+      method: req.method,
+      url: req.url,
+      ip: req.ip
+    });
+
+    // Extract just the body data, whether it's nested or not
     const data = req.body.body || req.body;
-    logger.info('Received webhook request', { data });
+    logger.info('Processed webhook payload', {
+      data,
+      dataType: typeof data,
+      hasBody: !!req.body.body,
+      contentType: req.headers['content-type']
+    });
+
+    // Validate required fields
+    const requiredFields = ['status', 'user_id', 'order_id', 'order_date', 'location_id', 'order_lines', 'supplier_id'];
+    const missingFields = requiredFields.filter(field => !data[field]);
+    
+    if (missingFields.length > 0) {
+      logger.warn('Missing required fields in webhook payload', { missingFields });
+      return res.status(400).json({
+        error: 'Missing required fields',
+        missing: missingFields
+      });
+    }
+
+    // Validate data types
+    if (!Array.isArray(data.order_lines)) {
+      logger.warn('Invalid order_lines format', { 
+        orderLines: data.order_lines,
+        type: typeof data.order_lines 
+      });
+      return res.status(400).json({
+        error: 'Invalid format',
+        message: 'order_lines must be an array'
+      });
+    }
+
+    // Try to parse the order date
+    try {
+      const parsedDate = new Date(data.order_date);
+      if (isNaN(parsedDate.getTime())) {
+        throw new Error('Invalid date');
+      }
+    } catch (error) {
+      logger.warn('Invalid order_date format', { 
+        orderDate: data.order_date,
+        error: error.message 
+      });
+      return res.status(400).json({
+        error: 'Invalid format',
+        message: 'order_date must be a valid ISO date string'
+      });
+    }
 
     // Store the raw webhook event in the staging table
+    logger.info('Attempting to store webhook event');
     const eventId = await db.insertWebhookEvent(data);
+    logger.info('Successfully stored webhook event', { eventId });
 
     res.json({
       success: true,
@@ -178,13 +236,42 @@ app.post('/webhook/create-order', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error processing Glide webhook', {
-      error: error.message,
-      stack: error.stack
+    // Enhanced error logging
+    logger.error('Error processing webhook', {
+      error: {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        detail: error.detail,
+        hint: error.hint,
+        position: error.position,
+        where: error.where,
+        schema: error.schema,
+        table: error.table,
+        column: error.column,
+        dataType: error.dataType,
+        constraint: error.constraint
+      },
+      request: {
+        body: req.body,
+        headers: req.headers,
+        method: req.method,
+        url: req.url,
+        ip: req.ip
+      }
     });
+
+    // Send a more detailed error response
     res.status(500).json({
       error: 'Failed to process webhook',
-      message: error.message
+      message: error.message,
+      details: {
+        type: error.name,
+        code: error.code,
+        hint: error.hint,
+        position: error.position
+      }
     });
   }
 });

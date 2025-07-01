@@ -95,7 +95,9 @@ export async function run(sql, params = []) {
     if (isProd) {
         const client = await pgPool.connect();
         try {
-            const result = await client.query(sql, params);
+            const { text, values } = convertParams(sql, params);
+            logger.info('Executing SQL:', { sql: text, params: values });
+            const result = await client.query(text, values);
             return result;
         } finally {
             client.release();
@@ -109,11 +111,11 @@ export async function run(sql, params = []) {
 function convertParams(query, params) {
     if (!isProd) return { text: query, values: params };
     
-    let pgIndex = 1;
     const pgParams = [];
+    let pgIndex = 0;
     const pgQuery = query.replace(/\?/g, () => {
-        pgParams.push(params[pgIndex - 1]);
-        return `$${pgIndex++}`;
+        pgParams.push(params[pgIndex]);
+        return `$${++pgIndex + 1}`;
     });
     
     return { text: pgQuery, values: pgParams };
@@ -506,14 +508,116 @@ const getRecentRows = (table) => {
 };
 
 // Insert a webhook event into the staging table
-async function insertWebhookEvent(payload) {
-    const sql = `
-        INSERT INTO create_order_webhook_events (payload)
-        VALUES (?)
-        RETURNING id
-    `;
-    const result = await run(sql, [JSON.stringify(payload)]);
-    return result.lastID || result.rows[0].id;
+export async function insertWebhookEvent(payload) {
+    if (isProd) {
+        const client = await pgPool.connect();
+        try {
+            // Test the connection with a simple query
+            const testResult = await client.query('SELECT 1 as test');
+            logger.info('Database connection test:', testResult.rows);
+            
+            // Check if table exists
+            const tableExists = await client.query(`
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public'
+                    AND table_name = 'create_order_webhook_events'
+                );
+            `);
+            logger.info('Table exists check:', {
+                exists: tableExists.rows[0].exists,
+                query: tableExists.command,
+                rowCount: tableExists.rowCount
+            });
+            
+            if (!tableExists.rows[0].exists) {
+                logger.info('Table does not exist, creating it...');
+                const createResult = await client.query(`
+                    CREATE TABLE create_order_webhook_events (
+                        id SERIAL PRIMARY KEY,
+                        received_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                        payload TEXT NOT NULL,
+                        processed BOOLEAN DEFAULT FALSE,
+                        processed_at TIMESTAMP WITH TIME ZONE
+                    );
+                `);
+                logger.info('Table creation result:', {
+                    command: createResult.command,
+                    rowCount: createResult.rowCount
+                });
+            }
+            
+            // Check table structure
+            const tableCheck = await client.query(`
+                SELECT column_name, data_type, column_default, is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                AND table_name = 'create_order_webhook_events'
+                ORDER BY ordinal_position;
+            `);
+            logger.info('Table structure:', {
+                columns: tableCheck.rows,
+                rowCount: tableCheck.rowCount
+            });
+            
+            // Log the exact SQL and parameters
+            const sql = 'INSERT INTO create_order_webhook_events (payload) VALUES ($1) RETURNING id';
+            const params = [JSON.stringify(payload)];
+            logger.info('Executing insert:', {
+                sql,
+                paramTypes: params.map(p => typeof p),
+                paramLengths: params.map(p => p?.length),
+                paramSample: params.map(p => typeof p === 'string' ? p.substring(0, 100) + '...' : p)
+            });
+            
+            // Execute insert with RETURNING
+            const result = await client.query(sql, params);
+            logger.info('Insert result:', {
+                command: result.command,
+                rowCount: result.rowCount,
+                rows: result.rows
+            });
+            
+            return result.rows[0].id;
+        } catch (error) {
+            // Enhanced error logging
+            logger.error('Database error in insertWebhookEvent:', {
+                error: {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack,
+                    code: error.code,
+                    detail: error.detail,
+                    hint: error.hint,
+                    position: error.position,
+                    where: error.where,
+                    schema: error.schema,
+                    table: error.table,
+                    column: error.column,
+                    dataType: error.dataType,
+                    constraint: error.constraint,
+                    severity: error.severity,
+                    routine: error.routine,
+                    query: error.query,
+                    parameters: error.parameters
+                },
+                context: {
+                    isProd,
+                    payloadType: typeof payload,
+                    payloadKeys: Object.keys(payload)
+                }
+            });
+            throw error;
+        } finally {
+            client.release();
+        }
+    } else {
+        const result = await db.run(
+            'INSERT INTO create_order_webhook_events (received_at, payload) VALUES (CURRENT_TIMESTAMP, ?) RETURNING id',
+            [JSON.stringify(payload)]
+        );
+        return result.lastID;
+    }
 }
 
 // Get all unprocessed webhook events
@@ -653,9 +757,8 @@ async function deleteWebhookEvent(id) {
     return run(sql, [id]);
 }
 
-// Export all functions
+// Export all database functions
 export {
-    get,
     getDb,
     setupDatabase,
     withTransaction,
@@ -670,7 +773,6 @@ export {
     listTables,
     countRows,
     getRecentRows,
-    insertWebhookEvent,
     getUnprocessedWebhookEvents,
     markWebhookEventProcessed,
     getAllLocations,
