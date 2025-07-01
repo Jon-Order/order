@@ -535,7 +535,7 @@ export async function insertWebhookEvent(payload) {
                 const createResult = await client.query(`
                     CREATE TABLE create_order_webhook_events (
                         id SERIAL PRIMARY KEY,
-                        received_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                        received_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         payload TEXT NOT NULL,
                         processed BOOLEAN DEFAULT FALSE,
                         processed_at TIMESTAMP WITH TIME ZONE
@@ -549,19 +549,47 @@ export async function insertWebhookEvent(payload) {
             
             // Check table structure
             const tableCheck = await client.query(`
-                SELECT column_name, data_type, column_default, is_nullable
+                SELECT 
+                    column_name,
+                    data_type,
+                    column_default,
+                    is_nullable,
+                    CASE 
+                        WHEN column_default LIKE 'nextval%' THEN 'sequence'
+                        WHEN column_default = 'CURRENT_TIMESTAMP' THEN 'current_timestamp'
+                        ELSE column_default
+                    END as default_type
                 FROM information_schema.columns
                 WHERE table_schema = 'public'
                 AND table_name = 'create_order_webhook_events'
                 ORDER BY ordinal_position;
             `);
             logger.info('Table structure:', {
-                columns: tableCheck.rows,
+                columns: tableCheck.rows.map(row => ({
+                    name: row.column_name,
+                    type: row.data_type,
+                    default: row.column_default,
+                    defaultType: row.default_type,
+                    nullable: row.is_nullable === 'YES'
+                })),
                 rowCount: tableCheck.rowCount
+            });
+
+            // Also check if the table was created by our migrations
+            const migrationCheck = await client.query(`
+                SELECT version, name, applied_at
+                FROM schema_migrations
+                WHERE name LIKE '%create%webhook%'
+                OR name LIKE '%webhook%table%'
+                ORDER BY version;
+            `);
+            logger.info('Migration history:', {
+                migrations: migrationCheck.rows,
+                rowCount: migrationCheck.rowCount
             });
             
             // Log the exact SQL and parameters
-            const sql = 'INSERT INTO create_order_webhook_events (payload) VALUES ($1) RETURNING id';
+            const sql = 'INSERT INTO create_order_webhook_events (received_at, payload) VALUES (CURRENT_TIMESTAMP, $1) RETURNING id';
             const params = [JSON.stringify(payload)];
             logger.info('Executing insert:', {
                 sql,
